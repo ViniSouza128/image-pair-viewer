@@ -691,6 +691,67 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
 .thumb .num{position:absolute;left:5px;top:4px;font-size:10px;font-weight:700;color:#fff;
   background:rgba(0,0,0,.55);padding:1px 5px;border-radius:4px;
   font-family:ui-monospace,Consolas,monospace}
+/* Checkmark de seleção — escondido por padrão; aparece via .selected.
+   Posicionado no canto superior direito (oposto ao .num). */
+.thumb .checkmark{position:absolute;top:5px;right:5px;width:20px;height:20px;
+  border-radius:50%;background:var(--accent);display:none;
+  align-items:center;justify-content:center;
+  box-shadow:0 1px 4px rgba(0,0,0,.45),0 0 0 2px rgba(8,9,12,.5)}
+.thumb .checkmark svg{width:12px;height:12px;color:#15161b}
+.thumb.selected .checkmark{display:flex}
+/* Anel laranja + leve overlay quente quando selecionado. */
+.thumb.selected{border-color:var(--accent);
+  box-shadow:0 0 0 2px rgba(255,174,60,.35),inset 0 0 0 999px rgba(255,174,60,.08)}
+
+/* ==========================================================================
+   STRIP TOOLS — barra de ações antes das miniaturas
+
+   Contém os botões de Ordenar, Adicionar mais e Selecionar. Quando
+   o usuário entra em "selection mode", essa barra é substituída pela
+   barra de seleção (.strip-tools-selection) que mostra contagem +
+   botões Remover / Cancelar.
+
+   border-right separa visualmente os tools da faixa de miniaturas.
+   ========================================================================== */
+.strip-tools{display:flex;align-items:center;gap:6px;padding:0 12px 0 14px;
+  flex-shrink:0;border-right:1px solid var(--line-2);position:relative;height:100%}
+.strip-tools[hidden]{display:none}
+.strip-tool{display:flex;align-items:center;gap:6px;padding:0 10px;height:32px;
+  background:transparent;border:1px solid var(--line);border-radius:8px;
+  color:var(--fg-2);cursor:pointer;font-size:12px;font-family:inherit;
+  font-weight:500;transition:all var(--t-fast);white-space:nowrap}
+.strip-tool:hover{background:var(--bg-2);color:var(--fg);border-color:var(--bg-3)}
+.strip-tool svg{width:14px;height:14px;flex-shrink:0}
+.strip-tool.icon-only{padding:0;width:32px;justify-content:center}
+.strip-tool.danger{color:#ff8e8e;border-color:rgba(255,80,80,.3)}
+.strip-tool.danger:hover{background:rgba(255,80,80,.12);color:#ffabab;border-color:rgba(255,80,80,.5)}
+.strip-tool .chev{width:10px;height:10px;opacity:.7}
+/* Sort menu — popup acima do botão (bottom positioned). */
+.sort-menu{position:absolute;bottom:calc(100% + 6px);left:14px;
+  min-width:240px;animation:menu-in .14s ease}
+.sort-menu button{display:flex;align-items:center;gap:10px;width:100%;
+  padding:8px 12px;background:transparent;border:none;color:var(--fg);
+  text-align:left;cursor:pointer;border-radius:7px;font-size:13px;
+  font-family:inherit;transition:background var(--t-fast)}
+.sort-menu button:hover{background:var(--bg-2)}
+.sort-menu button.active{background:var(--bg-3);color:var(--accent)}
+.sort-menu button .check{width:14px;height:14px;flex-shrink:0;opacity:0}
+.sort-menu button.active .check{opacity:1}
+
+/* Contagem de selecionados (modo selection). font-feature settings
+   garante alinhamento perfeito dos dígitos quando o número muda. */
+.sel-count{font-weight:600;font-size:12px;color:var(--fg);padding:0 12px 0 4px;
+  font-feature-settings:"tnum";white-space:nowrap}
+
+@media (max-width:900px){
+  /* Em mobile, encolher tools: esconder labels textuais, manter ícones. */
+  .strip-tool .lbl{display:none}
+  .strip-tool{padding:0;width:32px;justify-content:center}
+  .strip-tool.icon-only{width:32px}
+  .strip-tools{padding:0 8px;gap:4px}
+  .sort-menu{left:8px;min-width:200px}
+  .sel-count{padding:0 8px 0 2px;font-size:11px}
+}
 
 /* ==========================================================================
    MODAL (caixa de ajuda)
@@ -1225,13 +1286,72 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
 
 <!--
   =================== THUMBSTRIP ===================
-  Faixa horizontal de miniaturas no rodapé. Construída dinamicamente
-  por JS (buildStrip) — começa vazia. Cada thumb é clicável e leva
-  ao par correspondente.
+  Faixa horizontal de miniaturas no rodapé + barra de ferramentas
+  à esquerda. As ferramentas mudam de acordo com o estado:
 
-  <footer> semântico (rodapé do app, não da página inteira).
+  - Modo normal (.strip-tools): Ordenar | Adicionar | Selecionar
+  - Modo seleção (.strip-tools-selection): "N selecionada(s)" |
+    Remover | Cancelar
+
+  Apenas um dos dois containers fica visível por vez (controlado
+  via atributo `hidden` pelo JS).
 -->
 <footer class="thumbstrip-wrap">
+  <!-- Ferramentas modo normal -->
+  <div class="strip-tools" id="stripTools">
+    <!-- Botão Ordenar (abre sort-menu acima) -->
+    <button class="strip-tool" id="sortBtn" data-i18n-title="ui.sort" title="Ordenar" aria-haspopup="menu" aria-expanded="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M6 12h12M10 18h4"/></svg>
+      <span class="lbl" id="sortLabel" data-i18n="sort.name">Nome</span>
+      <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+    </button>
+    <!-- Menu popup de ordenação (anchored ao sortBtn).
+         Cada item dispara applySort(key). Item ativo recebe .active. -->
+    <div class="menu sort-menu" id="sortMenu" role="menu" hidden>
+      <button data-sort="name" class="active" role="menuitem">
+        <svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        <span data-i18n="sort.name.full">Nome (A → Z)</span>
+      </button>
+      <button data-sort="inserted" role="menuitem">
+        <svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        <span data-i18n="sort.inserted.full">Ordem de inserção</span>
+      </button>
+      <button data-sort="capture" role="menuitem">
+        <svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        <span data-i18n="sort.capture.full">Data de captura</span>
+      </button>
+      <button data-sort="modified" role="menuitem">
+        <svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        <span data-i18n="sort.modified.full">Modificação (recente → antiga)</span>
+      </button>
+    </div>
+    <!-- Adicionar mais fotos (incremental): abre file picker e
+         processa os arquivos sem perder a sessão atual. -->
+    <button class="strip-tool icon-only" id="addMoreBtn" data-i18n-title="ui.addMore" data-i18n-aria="ui.addMore" title="Adicionar mais fotos" aria-label="Adicionar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    </button>
+    <!-- Input de arquivo escondido — disparado por addMoreBtn.
+         Reutiliza handleFiles com {append:true}. -->
+    <input type="file" id="addMoreInput" multiple accept="image/*" style="display:none">
+    <!-- Entrar em modo seleção (toggle múltiplo). Alternativas
+         desktop: Ctrl/Cmd+clique no thumb. Mobile: long-press. -->
+    <button class="strip-tool icon-only" id="selectModeBtn" data-i18n-title="ui.select" data-i18n-aria="ui.select" title="Selecionar" aria-label="Selecionar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+    </button>
+  </div>
+
+  <!-- Ferramentas modo seleção (substitui as normais quando ativo) -->
+  <div class="strip-tools strip-tools-selection" id="stripToolsSelection" hidden>
+    <span class="sel-count" id="selCount">0</span>
+    <button class="strip-tool danger" id="removeSelBtn" data-i18n-title="ui.remove" title="Remover" aria-label="Remover">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+      <span class="lbl" data-i18n="ui.remove">Remover</span>
+    </button>
+    <button class="strip-tool icon-only" id="cancelSelBtn" data-i18n-title="ui.cancel" data-i18n-aria="ui.cancel" title="Cancelar" aria-label="Cancelar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+
   <div class="thumbstrip" id="strip"></div>
 </footer>
 
@@ -1346,9 +1466,25 @@ const uploadScreen = document.getElementById('uploadScreen');
 const uploadCard = document.getElementById('uploadCard');
 const uploadError = document.getElementById('uploadError');
 const fileInput = document.getElementById('fileInput');
+const addMoreInput = document.getElementById('addMoreInput');
 const loadingScreen = document.getElementById('loadingScreen');
 const loadingText = document.getElementById('loadingText');
 const loadingFill = document.getElementById('loadingFill');
+
+/* ============================================================================
+   ESTADO COMPARTILHADO ENTRE handleFiles E startApp
+
+   _insertCounter — contador monotônico que dá a "ordem de inserção"
+     pra cada par. Incrementa a cada par processado (inicial OU
+     adicionado depois). Usado pela ordenação 'inserted'.
+
+   _onAppendBatch — callback setado por startApp pra receber pares
+     adicionados via "+ Add More" SEM perder os já carregados.
+     Quando handleFiles é chamado com {append:true} E o app já está
+     rodando, delega pro callback em vez de chamar startApp de novo.
+   ========================================================================== */
+let _insertCounter = 0;
+let _onAppendBatch = null;
 
 /* ============================================================================
    I18N — internacionalização (PT-BR / EN-US)
@@ -1429,6 +1565,30 @@ const I18N = {
     'confirm.reload.yes': 'Descartar e recarregar',
     'geo.resolving': 'consultando…',
     'geo.attribution': 'via OpenStreetMap',
+    // ----- Strip tools (ordenação, seleção, adicionar) -----
+    'sort.name': 'Nome',
+    'sort.inserted': 'Inserção',
+    'sort.capture': 'Captura',
+    'sort.modified': 'Modificação',
+    'sort.name.full': 'Nome (A → Z)',
+    'sort.inserted.full': 'Ordem de inserção',
+    'sort.capture.full': 'Data de captura (antiga → recente)',
+    'sort.modified.full': 'Modificação (recente → antiga)',
+    'ui.sort': 'Ordenar',
+    'ui.addMore': 'Adicionar mais fotos',
+    'ui.select': 'Selecionar',
+    'ui.remove': 'Remover',
+    'select.count': '{n} selecionada(s)',
+    'select.empty': 'Nenhuma selecionada',
+    'confirm.remove.title': 'Remover fotos da sessão?',
+    'confirm.remove.msg': '{n} par(es) serão removidos. As fotos originais no seu dispositivo não são afetadas — você pode reenviá-las depois.',
+    'confirm.remove.yes': 'Remover',
+    'notif.added': '{n} novo(s) par(es)',
+    'notif.skipped': '{n} já estava(m) na sessão',
+    'notif.none': 'Nenhum par novo (todos já estavam carregados ou inválidos)',
+    'notif.adding': 'Adicionando…',
+    'select.tip.desktop': 'Ctrl+clique pra selecionar várias',
+    'select.tip.touch': 'Mantenha o toque pra selecionar várias',
   },
   'en-US': {
     'upload.instruction': 'Upload your set of photos — originals and edited versions, all together. Pairs are identified automatically from filenames.',
@@ -1488,6 +1648,30 @@ const I18N = {
     'confirm.reload.yes': 'Discard and reload',
     'geo.resolving': 'looking up…',
     'geo.attribution': 'via OpenStreetMap',
+    // ----- Strip tools (sort, select, add) -----
+    'sort.name': 'Name',
+    'sort.inserted': 'Inserted',
+    'sort.capture': 'Capture',
+    'sort.modified': 'Modified',
+    'sort.name.full': 'Name (A → Z)',
+    'sort.inserted.full': 'Insertion order',
+    'sort.capture.full': 'Capture date (oldest → newest)',
+    'sort.modified.full': 'Modified (newest → oldest)',
+    'ui.sort': 'Sort',
+    'ui.addMore': 'Add more photos',
+    'ui.select': 'Select',
+    'ui.remove': 'Remove',
+    'select.count': '{n} selected',
+    'select.empty': 'None selected',
+    'confirm.remove.title': 'Remove photos from session?',
+    'confirm.remove.msg': '{n} pair(s) will be removed. Original files on your device are not affected — you can re-upload them later.',
+    'confirm.remove.yes': 'Remove',
+    'notif.added': '{n} new pair(s)',
+    'notif.skipped': '{n} already loaded',
+    'notif.none': 'No new pair (all already loaded or invalid)',
+    'notif.adding': 'Adding…',
+    'select.tip.desktop': 'Ctrl+click to select multiple',
+    'select.tip.touch': 'Long-press to select multiple',
   },
 };
 
@@ -2047,12 +2231,56 @@ function formatExif(tags, gps){
    --------------------------------------------------------------------------- */
 
 /**
- * Pipeline completo: filtrar imagens -> parear -> carregar tudo -> abrir app.
- * Atualiza a barra de progresso conforme processa cada par.
+ * Processa um par {before, after} (objetos File) em um item DATA
+ * completo: carrega ambas as imagens, gera thumb do "antes", parse
+ * EXIF do "antes", e empacota tudo num objeto. Atribui um
+ * insertedAt monotônico pra preservar ordem de inserção.
+ *
+ * Inclui `lastModified` dos Files originais (timestamp Unix em ms)
+ * pra suportar ordenação por "data de modificação".
+ *
+ * @param {{id:string, before:File, after:File}} pair
+ * @returns {Promise<Object>} item no formato DATA[i]
+ */
+async function processPair(pair){
+  const [bRes, aRes, exif] = await Promise.all([
+    processImage(pair.before, true),    // gera thumb
+    processImage(pair.after, false),
+    parseExif(pair.before),
+  ]);
+  return {
+    id: pair.id,
+    b: {
+      name: pair.before.name, src: bRes.fullUrl,
+      w: bRes.w, h: bRes.h, size: fmtSize(pair.before.size),
+      lastModified: pair.before.lastModified || 0,
+    },
+    a: {
+      name: pair.after.name, src: aRes.fullUrl,
+      w: aRes.w, h: aRes.h, size: fmtSize(pair.after.size),
+      lastModified: pair.after.lastModified || 0,
+    },
+    t: bRes.thumbUrl,
+    exif,
+    insertedAt: ++_insertCounter,   // sequência monotônica
+  };
+}
+
+/**
+ * Pipeline completo: filtrar imagens -> parear -> carregar tudo.
+ *
+ * Dois modos:
+ *   - Inicial: startApp(data) sobe a UI do comparador.
+ *   - Append (opts.append=true): delega pro callback _onAppendBatch
+ *     que o startApp registrou — pares são integrados na sessão
+ *     existente sem perder estado.
  *
  * @param {FileList|File[]} fileList
+ * @param {{append?:boolean}} [opts]
  */
-async function handleFiles(fileList){
+async function handleFiles(fileList, opts){
+  opts = opts || {};
+  const append = !!(opts.append && _onAppendBatch);
   clearError();
 
   // Filtra só extensões reconhecidas; também aceita por MIME type
@@ -2060,19 +2288,22 @@ async function handleFiles(fileList){
   // exóticas, mas preenchem file.type).
   const files = [...fileList].filter(f => IMG_RE.test(f.name) || (f.type && f.type.startsWith('image/')));
   if (files.length < 2){
-    showError(t('err.fewFiles'));
+    if (!append) showError(t('err.fewFiles'));
     return;
   }
   const pairs = pairFiles(files);
   if (!pairs.length){
-    showError(t('err.noPairs'));
+    if (!append) showError(t('err.noPairs'));
     return;
   }
 
-  // Troca a tela de upload pela de loading.
-  uploadScreen.hidden = true;
+  // Mostra a tela de loading (cobre upload no init; cobre app no append).
+  if (!append) uploadScreen.hidden = true;
   loadingScreen.hidden = false;
-  loadingText.textContent = t('load.reading', { n: pairs.length });
+  loadingFill.style.width = '0%';
+  loadingText.textContent = append
+    ? t('notif.adding')
+    : t('load.reading', { n: pairs.length });
 
   const data = [];
   // Processa par a par, sequencialmente, pra dar feedback visual e
@@ -2082,28 +2313,24 @@ async function handleFiles(fileList){
     loadingFill.style.width = `${(i / pairs.length) * 100}%`;
     loadingText.textContent = t('load.processing', { i: i+1, n: pairs.length, id: p.id });
     try {
-      // Dentro do par, paraleliza (Promise.all): leitura do "antes",
-      // "depois" e EXIF. O thumb é gerado só do "antes" pra economizar
-      // — ele é o que aparece na strip.
-      const [bRes, aRes, exif] = await Promise.all([
-        processImage(p.before, true),
-        processImage(p.after, false),
-        parseExif(p.before),
-      ]);
-      data.push({
-        id: p.id,
-        // "b" = before (antes/original); "a" = after (depois/editado).
-        b: {name: p.before.name, src: bRes.fullUrl, w: bRes.w, h: bRes.h, size: fmtSize(p.before.size)},
-        a: {name: p.after.name, src: aRes.fullUrl, w: aRes.w, h: aRes.h, size: fmtSize(p.after.size)},
-        t: bRes.thumbUrl,                       // thumb (data URL JPEG comprimido)
-        exif,
-      });
+      data.push(await processPair(p));
     } catch(err){
       // Não interrompe o lote por causa de um par com problema.
       console.warn('Skipped pair', p.id, err);
     }
   }
   loadingFill.style.width = '100%';
+
+  if (append){
+    // Modo append: delega pro app rodando. Ele decide o que filtrar
+    // (duplicados por ID) e como reagir.
+    setTimeout(() => {
+      loadingScreen.hidden = true;
+      _onAppendBatch(data);
+    }, 150);
+    return;
+  }
+
   if (!data.length){
     // Volta pra tela de upload com aviso.
     loadingScreen.hidden = true;
@@ -2127,16 +2354,33 @@ async function handleFiles(fileList){
    pro startApp com os dados embutidos.
    --------------------------------------------------------------------------- */
 function bindUploadUI(){
+  // Input principal (tela inicial) — substitui DATA.
   fileInput.addEventListener('change', e => handleFiles(e.target.files));
+
+  // Input "+" da strip (modo append) — adiciona à sessão existente.
+  // O input fica permanentemente no DOM; o botão "+" o aciona.
+  if (addMoreInput){
+    addMoreInput.addEventListener('change', e => {
+      handleFiles(e.target.files, { append: true });
+      // Limpa o value pra permitir re-selecionar os MESMOS arquivos
+      // se desejado (sem essa linha, change não dispara duas vezes
+      // pro mesmo conjunto).
+      e.target.value = '';
+    });
+  }
 
   // "dragDepth" trata o problema do dragenter/dragleave disparar pra
   // cada filho ao mover sobre a árvore. A gente só remove a classe
   // is-drag quando profundidade volta a zero.
   let dragDepth = 0;
   window.addEventListener('dragenter', e => {
-    if (uploadScreen.hidden) return;
-    dragDepth++;
-    uploadScreen.classList.add('is-drag');
+    // Se a tela de upload está visível, destaca o card.
+    // Se o app já está rodando, ainda permitimos drop (modo append),
+    // mas sem destaque visual (UX menos invasiva no meio do uso).
+    if (!uploadScreen.hidden){
+      dragDepth++;
+      uploadScreen.classList.add('is-drag');
+    }
   });
   window.addEventListener('dragleave', e => {
     if (uploadScreen.hidden) return;
@@ -2149,8 +2393,13 @@ function bindUploadUI(){
     e.preventDefault();
     dragDepth = 0;
     uploadScreen.classList.remove('is-drag');
-    if (!uploadScreen.hidden && e.dataTransfer && e.dataTransfer.files){
+    if (!e.dataTransfer || !e.dataTransfer.files || !e.dataTransfer.files.length) return;
+    // Decide entre modo inicial e modo append baseado em qual tela
+    // está ativa. Se app está rodando (upload escondido), append.
+    if (!uploadScreen.hidden){
       handleFiles(e.dataTransfer.files);
+    } else if (_onAppendBatch){
+      handleFiles(e.dataTransfer.files, { append: true });
     }
   });
 }
@@ -2223,16 +2472,236 @@ function startApp(DATA){
   // Tira o "is-empty" pra revelar a UI (CSS faz visibility:hidden).
   app.classList.remove('is-empty');
 
-  // ----- Construção da strip de miniaturas -----
-  // Uma <div.thumb> por par; guarda o índice via dataset.i pra o click.
-  DATA.forEach((item, i) => {
-    const t = document.createElement('div');
-    t.className = 'thumb';
-    t.dataset.i = i;
-    t.innerHTML = `<img loading="lazy" src="${item.t || item.b.src}" alt=""><span class="num">${item.id}</span>`;
-    t.addEventListener('click', () => load(i));
-    strip.appendChild(t);
-  });
+  /* ============================================================
+     ESTADO DE ORDENAÇÃO E SELEÇÃO
+
+     currentSort — modo de ordenação ativo. Persistido em localStorage
+       sob a chave 'sort'. Default: 'name' (alfabético).
+     selection  — Set<number> de índices selecionados (modo seleção).
+     selectionMode — bool: true quando o usuário está em modo seleção
+       (clique em thumb toggla em vez de navegar).
+
+     Comparadores SORT_COMPARATORS retornam <0 (a antes de b), 0,
+     ou >0. Items sem o campo de sort caem pro fim usando ±Infinity.
+     ============================================================ */
+  const SORT_COMPARATORS = {
+    name: (a, b) => a.b.name.localeCompare(b.b.name, undefined, {numeric: true, sensitivity: 'base'}),
+    inserted: (a, b) => a.insertedAt - b.insertedAt,
+    capture: (a, b) => {
+      // exif.date é "YYYY-MM-DD HH:MM:SS" — comparação lexicográfica
+      // funciona como ordenação cronológica. Falta de data = vai pro fim.
+      const ad = a.exif && a.exif.date, bd = b.exif && b.exif.date;
+      if (!ad && !bd) return 0;
+      if (!ad) return 1;
+      if (!bd) return -1;
+      return ad.localeCompare(bd);
+    },
+    modified: (a, b) => {
+      // Newest first (descending). Usa lastModified da versão editada
+      // (item.a) — assume que é o "trabalho mais recente" do usuário.
+      const am = (a.a && a.a.lastModified) || 0;
+      const bm = (b.a && b.a.lastModified) || 0;
+      return bm - am;
+    },
+  };
+  let currentSort = (() => {
+    try {
+      const saved = localStorage.getItem('sort');
+      if (saved && SORT_COMPARATORS[saved]) return saved;
+    } catch(_){}
+    return 'name';
+  })();
+  const selection = new Set();
+  let selectionMode = false;
+
+  /**
+   * Re-ordena DATA conforme currentSort, preservando a foto atualmente
+   * visível (rastreada por ID) e a seleção atual (também por ID).
+   */
+  function applySort(){
+    const cmp = SORT_COMPARATORS[currentSort];
+    if (!cmp) return;
+    const curId = DATA[current] && DATA[current].id;
+    const selIds = new Set([...selection].map(i => DATA[i] && DATA[i].id).filter(Boolean));
+    DATA.sort(cmp);
+    selection.clear();
+    DATA.forEach((d, i) => { if (selIds.has(d.id)) selection.add(i); });
+    if (curId){
+      const idx = DATA.findIndex(d => d.id === curId);
+      if (idx >= 0) current = idx;
+    }
+  }
+
+  // Aplica o sort INICIAL antes de construir a strip pela primeira vez.
+  applySort();
+
+  /**
+   * (Re)constrói o conteúdo da strip baseado no estado atual de
+   * DATA + selection. Limpa filhos anteriores. Chama activateThumb()
+   * pra destacar o thumb da foto atual.
+   */
+  function rebuildStrip(){
+    strip.innerHTML = '';
+    DATA.forEach((item, i) => {
+      const tEl = document.createElement('div');
+      tEl.className = 'thumb' + (selection.has(i) ? ' selected' : '');
+      tEl.dataset.i = i;
+      tEl.innerHTML =
+        `<img loading="lazy" src="${item.t || item.b.src}" alt="">` +
+        `<span class="num">${item.id}</span>` +
+        `<span class="checkmark" aria-hidden="true">` +
+          `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>` +
+        `</span>`;
+      bindThumbInteractions(tEl, i);
+      strip.appendChild(tEl);
+    });
+    activateThumb(current);
+  }
+
+  /**
+   * Liga os listeners de interação num thumb específico:
+   *   - clique normal: navega (load) OU toggla seleção (se em mode)
+   *   - Ctrl/Cmd+clique: entra em modo seleção + toggla
+   *   - long-press touch (>=500ms sem mover): entra em modo seleção + toggla
+   *   - context menu (botão direito): também entra em modo seleção
+   *
+   * O long-press é cancelado se o usuário começar a arrastar (scroll
+   * horizontal da strip) ou levantar o dedo antes do timer.
+   */
+  function bindThumbInteractions(tEl, i){
+    tEl.addEventListener('click', e => {
+      if (e.ctrlKey || e.metaKey){
+        if (!selectionMode) enterSelectionMode();
+        toggleSelect(i);
+        return;
+      }
+      if (selectionMode){ toggleSelect(i); return; }
+      load(i);
+    });
+    tEl.addEventListener('contextmenu', e => {
+      e.preventDefault();
+      if (!selectionMode) enterSelectionMode();
+      toggleSelect(i);
+    });
+    // Long-press (touch only).
+    let holdTimer = null, sx = 0, sy = 0;
+    tEl.addEventListener('pointerdown', e => {
+      if (e.pointerType !== 'touch') return;
+      sx = e.clientX; sy = e.clientY;
+      holdTimer = setTimeout(() => {
+        holdTimer = null;
+        if (!selectionMode) enterSelectionMode();
+        toggleSelect(i);
+        // Feedback haptic se suportado.
+        if (navigator.vibrate) try { navigator.vibrate(25); } catch(_){}
+      }, 500);
+    });
+    const cancelHold = e => {
+      if (!holdTimer) return;
+      // Cancela se movimento >8px (scroll iniciado) ou ao soltar.
+      if (e.type === 'pointerup' || e.type === 'pointercancel'
+          || Math.hypot(e.clientX - sx, e.clientY - sy) > 8){
+        clearTimeout(holdTimer); holdTimer = null;
+      }
+    };
+    tEl.addEventListener('pointerup', cancelHold);
+    tEl.addEventListener('pointermove', cancelHold);
+    tEl.addEventListener('pointercancel', cancelHold);
+  }
+
+  /* ---------- Modo seleção ---------- */
+  const stripTools = $('stripTools');
+  const stripToolsSel = $('stripToolsSelection');
+  const selCountEl = $('selCount');
+
+  function updateSelectionUI(){
+    // Troca qual barra de ferramentas está visível.
+    stripTools.hidden = selectionMode;
+    stripToolsSel.hidden = !selectionMode;
+    selCountEl.textContent = t('select.count', { n: selection.size });
+    // Reflete o estado de cada thumb (sem rebuild — só toggle de classe).
+    document.querySelectorAll('.thumb').forEach((el, idx) => {
+      el.classList.toggle('selected', selection.has(idx));
+    });
+  }
+  function enterSelectionMode(){
+    if (selectionMode) return;
+    selectionMode = true;
+    updateSelectionUI();
+  }
+  function exitSelectionMode(){
+    selection.clear();
+    selectionMode = false;
+    updateSelectionUI();
+  }
+  function toggleSelect(i){
+    if (selection.has(i)) selection.delete(i);
+    else selection.add(i);
+    // Se zerou seleção, sai automaticamente do modo (UX comum).
+    if (selection.size === 0){ exitSelectionMode(); return; }
+    updateSelectionUI();
+  }
+
+  async function removeSelected(){
+    if (!selection.size) return;
+    const ok = await showConfirm({
+      title: t('confirm.remove.title'),
+      message: t('confirm.remove.msg', { n: selection.size }),
+      confirmLabel: t('confirm.remove.yes'),
+      danger: true,
+    });
+    if (!ok) return;
+    // Itera DESC pra não invalidar índices durante o splice.
+    const toRemove = [...selection].sort((a,b) => b - a);
+    const curId = DATA[current] && DATA[current].id;
+    toRemove.forEach(i => {
+      const item = DATA[i];
+      // Libera memória: revoga Object URLs (não data URLs).
+      if (item.b.src && item.b.src.startsWith('blob:')) URL.revokeObjectURL(item.b.src);
+      if (item.a.src && item.a.src.startsWith('blob:')) URL.revokeObjectURL(item.a.src);
+      DATA.splice(i, 1);
+    });
+    selection.clear();
+    selectionMode = false;
+    if (!DATA.length){
+      // Removeu tudo — volta pra tela inicial.
+      location.reload();
+      return;
+    }
+    // Tenta preservar a foto que estava sendo vista.
+    let nc = DATA.findIndex(d => d.id === curId);
+    if (nc < 0) nc = Math.min(current, DATA.length - 1);
+    current = nc;
+    rebuildStrip();
+    load(current);
+    updateSelectionUI();
+  }
+
+  /* ---------- Callback de "Add More" ---------- */
+  // Registra com o handleFiles (escopo IIFE) pra que drag-drop fora
+  // da tela inicial e clique no "+" da strip cheguem aqui.
+  _onAppendBatch = (newItems) => {
+    if (!newItems || !newItems.length){
+      showHint(t('notif.none'), 2400);
+      return;
+    }
+    // Filtra duplicados por ID (já presentes na sessão).
+    const existing = new Set(DATA.map(d => d.id));
+    const additions = newItems.filter(d => !existing.has(d.id));
+    const skipped = newItems.length - additions.length;
+    if (additions.length){
+      DATA.push(...additions);
+      applySort();
+      rebuildStrip();
+    }
+    const parts = [];
+    if (additions.length) parts.push(t('notif.added', { n: additions.length }));
+    if (skipped) parts.push(t('notif.skipped', { n: skipped }));
+    showHint(parts.join(' · ') || t('notif.none'), 3000);
+  };
+
+  // ----- Construção INICIAL da strip -----
+  rebuildStrip();
   /**
    * Marca o thumb i como ativo (borda laranja) e centraliza-o
    * na strip via scrollIntoView com block:nearest pra não rolar
@@ -2866,10 +3335,12 @@ function startApp(DATA){
       } break;
       case '0': case 'Escape': {
         // Esc tem precedência em camadas: fecha o que estiver aberto
-        // primeiro (menu > modal > zoom reset).
+        // primeiro (menus > modal > seleção > zoom reset).
         const exMenu = $('exportMenu');
         if (exMenu && !exMenu.hidden){ exMenu.hidden = true; break; }
+        if (sortMenu && !sortMenu.hidden){ closeSortMenu(); break; }
         if (!helpModal.hidden){ helpModal.hidden = true; break; }
+        if (selectionMode){ exitSelectionMode(); break; }
         reset();
       } break;
       case 'f': case 'F': toggleFullscreen(); break;
@@ -3188,11 +3659,82 @@ function startApp(DATA){
     $('exportOne')?.addEventListener('click', () => exportItems([DATA[current]], 'one'));
   }
 
+  /* ============================================================
+     Strip tools: Sort, Add More, Selection, Remove
+     ============================================================ */
+
+  // ---- Sort dropdown ----
+  const sortBtn = $('sortBtn');
+  const sortMenu = $('sortMenu');
+  const sortLabel = $('sortLabel');
+
+  /** Atualiza a label do botão de sort + o item "active" no menu. */
+  function refreshSortUI(){
+    sortLabel.textContent = t('sort.' + currentSort);
+    sortMenu.querySelectorAll('button[data-sort]').forEach(b => {
+      b.classList.toggle('active', b.dataset.sort === currentSort);
+    });
+  }
+  function openSortMenu(){
+    sortMenu.hidden = false;
+    sortBtn.setAttribute('aria-expanded', 'true');
+  }
+  function closeSortMenu(){
+    sortMenu.hidden = true;
+    sortBtn.setAttribute('aria-expanded', 'false');
+  }
+  sortBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    if (sortMenu.hidden) openSortMenu(); else closeSortMenu();
+  });
+  // Clique fora fecha o menu.
+  document.addEventListener('click', e => {
+    if (!sortMenu.hidden && !sortMenu.contains(e.target) && e.target !== sortBtn){
+      closeSortMenu();
+    }
+  });
+  // Clique num item: troca o sort, persiste, re-renderiza.
+  sortMenu.querySelectorAll('button[data-sort]').forEach(b => {
+    b.addEventListener('click', () => {
+      currentSort = b.dataset.sort;
+      try { localStorage.setItem('sort', currentSort); } catch(_){}
+      applySort();
+      rebuildStrip();
+      load(current);
+      refreshSortUI();
+      closeSortMenu();
+    });
+  });
+  refreshSortUI();
+
+  // ---- Add More (botão "+") ----
+  // Reaproveita o input #addMoreInput que já está no DOM e teve seu
+  // change handler ligado em bindUploadUI. Aqui só disparamos o click.
+  $('addMoreBtn').addEventListener('click', () => {
+    if (addMoreInput) addMoreInput.click();
+  });
+
+  // ---- Modo seleção (botão dedicated) ----
+  $('selectModeBtn').addEventListener('click', () => {
+    if (selectionMode) exitSelectionMode();
+    else {
+      enterSelectionMode();
+      // Hint contextual: como selecionar mais (Ctrl-click vs long-press)
+      const tip = isTouchDevice ? t('select.tip.touch') : t('select.tip.desktop');
+      showHint(tip, 3000);
+    }
+  });
+  $('removeSelBtn').addEventListener('click', removeSelected);
+  $('cancelSelBtn').addEventListener('click', exitSelectionMode);
+
   /* ---------- Reage a mudança de idioma ----------
      Re-renderiza o info panel pra que strings traduzidas dinamicamente
      (ex.: "consultando..." da geocoding) atualizem. Os labels com
-     data-i18n já são tratados pelo applyI18n global automaticamente. */
+     data-i18n já são tratados pelo applyI18n global automaticamente.
+     Também atualiza a label do sort + a contagem da seleção. */
   document.addEventListener('lang:change', () => {
+    refreshSortUI();
+    if (selectionMode) updateSelectionUI();
     if (DATA[current]) updateInfoPanel(DATA[current]);
   });
 

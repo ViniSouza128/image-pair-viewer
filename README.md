@@ -69,8 +69,41 @@ Pares incompletos (1 só arquivo com aquele ID) são ignorados.
 ## Painel de informações
 
 Para cada lado do par: nome, dimensões, tamanho. Para JPEGs, lê
-EXIF (data, câmera, lente, ISO, abertura, obturador, focal) via
-parser próprio.
+EXIF (data, câmera, lente, ISO, abertura, obturador, focal, autor)
+via parser próprio. Se houver coordenadas GPS no EXIF, consulta a
+API pública do Nominatim/OpenStreetMap pra resolver Cidade, Estado
+e País — esse é o único endpoint externo do app; somente
+lat/lon saem do dispositivo (nunca as fotos), com cache em memória
+e throttle de 1.1 s por request.
+
+## Strip inferior — ordenar, adicionar, remover
+
+A barra de ferramentas à esquerda da faixa de miniaturas:
+
+- **Ordenar** — abre um menu com 4 critérios:
+  - **Nome (A → Z)** — alfabético no nome do arquivo *(default)*
+  - **Ordem de inserção** — ordem em que foram carregados
+  - **Data de captura** — EXIF `DateTimeOriginal` (mais antiga primeiro)
+  - **Data de modificação** — `File.lastModified` da versão editada
+    (mais recente primeiro)
+  A escolha é persistida em `localStorage`.
+- **Adicionar mais fotos (+)** — abre o seletor pra anexar novos
+  arquivos à sessão atual sem perder os já carregados. Pares com
+  ID já presente são silenciosamente ignorados. Também aceita
+  drag-and-drop direto no app já carregado.
+- **Selecionar** — entra em modo seleção múltipla. Em modo:
+  - clique no thumb alterna a seleção
+  - **Remover** descarta os pares selecionados (com confirmação)
+  - **Cancelar** sai do modo
+  Atalhos alternativos pra entrar em seleção:
+  - **Ctrl/⌘+clique** no thumb (desktop)
+  - **Pressione e segure** o thumb por ~500 ms (mobile)
+
+## Idioma
+
+Botão `PT`/`EN` na topbar alterna PT-BR ↔ EN-US. Detecção inicial:
+preferência salva (`localStorage`) → `navigator.language` → fallback
+EN-US. A escolha persiste entre sessões.
 
 ## Exportação
 
