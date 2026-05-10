@@ -1,0 +1,22 @@
+# Imagens (são processadas só no browser; nunca devem entrar no repo)
+*.jpg
+*.jpeg
+*.png
+*.webp
+*.heic
+*.avif
+*.gif
+*.bmp
+
+# Arquivos de sistema / editor
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+.vscode/
+.idea/
+
+# Scripts / artefatos temporários
+_*.py
+_*.html
+*.tmp.js

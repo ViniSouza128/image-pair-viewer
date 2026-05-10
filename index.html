@@ -1,0 +1,1725 @@
+<!doctype html>
+<!--
+  ====================================================================
+  image-pair-viewer  —  visualizador de pares de imagens (standalone)
+  ====================================================================
+
+  Aplicativo de página única (SPA) para comparar pares de imagens
+  diretamente no navegador, sem servidor.
+
+  COMO FUNCIONA
+  -------------
+  1. O usuário arrasta (ou seleciona) um lote de imagens.
+  2. O JavaScript pareia automaticamente os arquivos pelo nome:
+     - identifica os 4 dígitos consecutivos depois de um "_"
+       (ex.: IMG_0093, GAB_0074, DSC_4521)
+     - dois arquivos com o mesmo número formam um par
+     - dentro do par, o nome MAIS CURTO é o "antes" (original)
+       e o mais longo (com sufixo/prefixo extra) é o "depois"
+  3. As imagens viram Object URLs (blob:) — referenciam o File na
+     RAM do navegador, sem cópia pra servidor.
+  4. EXIF dos JPEGs é lido por um parser próprio (vê data, câmera,
+     lente, ISO, abertura, obturador, focal).
+  5. A interface oferece três modos de comparação (slider, lado
+     a lado, solo) com zoom, pan, atalhos de teclado e gestos.
+
+  PRIVACIDADE
+  -----------
+  Nenhum byte de imagem sai do navegador. O HTML é estático e
+  não tem código de upload pra servidor — tudo é processado
+  localmente via File API, Canvas e DataView.
+
+  ARQUITETURA DO ARQUIVO
+  ----------------------
+  - <style>      tema dark, layouts desktop/mobile, todos
+                 componentes (topbar, viewer, sidebar, modal).
+  - <body>       3 camadas: tela de upload, tela de loading,
+                 e o app comparador (escondido até carregar dados).
+  - <script>     1) lógica de pareamento + leitura de arquivos
+                    + parser EXIF
+                 2) função startApp(DATA) com toda a interface
+                    interativa do comparador.
+
+  Tudo num único arquivo pra rodar em GitHub Pages ou qualquer
+  servidor estático.
+  ====================================================================
+-->
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>image-pair-viewer</title>
+<style>
+:root{
+  --bg:#08090c;--bg-1:#0e1015;--bg-2:#161922;--bg-3:#1d2230;--bg-4:#262b3a;
+  --line:#262a36;--line-2:#1c1f2a;
+  --fg:#eef0f5;--fg-2:#bfc4d2;--fg-3:#7d8395;--fg-4:#525a6c;
+  --before:#6cc7ff;--after:#ffae3c;--accent:#ffae3c;
+  --shadow:0 10px 40px rgba(0,0,0,.55);
+  --r:10px;--r-lg:14px;--t-fast:.12s;--t-med:.22s;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;height:100%;background:var(--bg);color:var(--fg);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif;
+  font-size:14px;overflow:hidden;overscroll-behavior:none}
+button{font-family:inherit;color:inherit}
+kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:11px;
+  background:var(--bg-3);border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;
+  padding:1px 6px;color:var(--fg);min-width:20px;text-align:center}
+.mono{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace}
+
+.app{display:flex;flex-direction:column;height:100dvh;height:100vh}
+.app.is-loading,.app.is-empty{visibility:hidden}
+
+/* ============ UPLOAD SCREEN ============ */
+.upload-screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+  background:radial-gradient(ellipse at center,#0d0e13 0%,#08090c 70%);z-index:200;padding:24px;
+  transition:opacity var(--t-med);overflow-y:auto}
+.upload-screen[hidden]{display:none}
+.upload-screen.is-drag .upload-card{border-color:var(--accent);background:rgba(255,174,60,.06)}
+.upload-card{background:var(--bg-1);border:1px dashed var(--line);border-radius:18px;
+  padding:44px 40px;max-width:560px;width:100%;text-align:center;
+  transition:border-color var(--t-fast),background var(--t-fast)}
+.upload-logo{display:inline-flex;align-items:center;gap:4px;margin-bottom:18px;position:relative;
+  height:36px}
+.upload-logo .dot{width:24px;height:24px;border-radius:50%;
+  box-shadow:0 0 0 1px rgba(0,0,0,.3),0 4px 16px rgba(0,0,0,.4)}
+.upload-logo .dot:nth-child(1){background:var(--before)}
+.upload-logo .dot:nth-child(2){background:var(--after);margin-left:-8px;mix-blend-mode:screen}
+.upload-card h1{font-size:22px;margin:0 0 8px;font-weight:600;letter-spacing:.2px}
+.upload-card h1 em{color:var(--accent);font-style:normal}
+.upload-card p{margin:0 0 24px;color:var(--fg-2);line-height:1.55;font-size:14px}
+.upload-btn{display:inline-flex;align-items:center;gap:10px;padding:12px 22px;
+  background:linear-gradient(180deg,#ffbe55,#ff9a18);color:#15161b;font-weight:700;
+  border-radius:999px;cursor:pointer;border:none;font-size:14px;
+  box-shadow:0 6px 22px rgba(255,154,24,.35),0 1px 0 rgba(255,255,255,.4) inset;
+  transition:transform var(--t-fast),box-shadow var(--t-fast);font-family:inherit}
+.upload-btn:hover{transform:translateY(-1px);
+  box-shadow:0 8px 28px rgba(255,154,24,.45),0 1px 0 rgba(255,255,255,.4) inset}
+.upload-btn svg{width:16px;height:16px}
+.upload-secondary{display:block;margin-top:14px;color:var(--fg-3);font-size:12px;
+  background:transparent;border:none;cursor:pointer;text-decoration:underline;
+  text-decoration-color:var(--fg-4);text-underline-offset:2px}
+.upload-secondary:hover{color:var(--fg-2)}
+.upload-rules{margin-top:24px;padding-top:20px;border-top:1px solid var(--line-2);
+  text-align:left;font-size:12px;color:var(--fg-3);line-height:1.6}
+.upload-rules b{color:var(--fg-2);font-weight:600}
+.upload-rules code{background:var(--bg-2);padding:1px 6px;border-radius:4px;
+  font-family:ui-monospace,Consolas,monospace;color:var(--fg-2);font-size:11px}
+.upload-rules ul{margin:6px 0 0 0;padding-left:18px}
+.upload-rules li{margin:3px 0}
+.upload-priv{margin-top:18px;font-size:11px;color:var(--fg-4);display:flex;align-items:center;
+  gap:6px;justify-content:center}
+.upload-priv svg{width:13px;height:13px;flex-shrink:0}
+.upload-error{margin-top:14px;padding:10px 14px;background:rgba(255,80,80,.08);
+  border:1px solid rgba(255,80,80,.25);color:#ff8e8e;border-radius:8px;font-size:13px}
+.upload-error[hidden]{display:none}
+
+/* ============ LOADING SCREEN ============ */
+.loading-screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+  background:var(--bg);z-index:150;flex-direction:column;gap:20px}
+.loading-screen[hidden]{display:none}
+.spinner{width:48px;height:48px;border:3px solid var(--bg-3);border-top-color:var(--accent);
+  border-radius:50%;animation:spin .9s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-text{font-size:13px;color:var(--fg-2)}
+.loading-bar{width:240px;height:3px;background:var(--bg-3);border-radius:2px;overflow:hidden}
+.loading-bar-fill{height:100%;background:var(--accent);width:0;transition:width .2s ease}
+
+/* ============ TOPBAR ============ */
+.topbar{flex:0 0 auto;display:flex;align-items:center;gap:14px;padding:0 16px;
+  height:54px;background:linear-gradient(180deg,var(--bg-1),var(--bg));
+  border-bottom:1px solid var(--line);position:relative;z-index:10}
+.brand{display:flex;align-items:center;gap:11px;flex-shrink:0;min-width:0}
+.logo{display:flex;align-items:center;gap:-2px;position:relative;width:30px;height:18px}
+.logo .dot{position:absolute;top:50%;width:14px;height:14px;border-radius:50%;
+  transform:translateY(-50%);box-shadow:0 0 0 1px rgba(0,0,0,.3)}
+.logo .dot-b{left:0;background:var(--before)}
+.logo .dot-a{left:14px;background:var(--after);mix-blend-mode:screen}
+.brand-text{display:flex;flex-direction:column;line-height:1.1;min-width:0}
+.brand h1{font-size:14px;font-weight:600;margin:0;letter-spacing:.2px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.brand h1 em{color:var(--accent);font-style:normal}
+.brand h1 .sep{color:var(--fg-4);margin:0 4px;font-weight:400}
+.brand .counter{font-size:11px;color:var(--fg-3);margin-top:1px;font-feature-settings:"tnum"}
+
+.modes{display:flex;background:var(--bg-2);border-radius:999px;padding:3px;gap:2px;
+  margin:0 auto;border:1px solid var(--line)}
+.mode-btn{display:flex;align-items:center;gap:6px;padding:6px 12px;font-size:12px;
+  border-radius:999px;background:transparent;border:none;color:var(--fg-3);cursor:pointer;
+  transition:color var(--t-fast),background var(--t-fast);white-space:nowrap;font-weight:500}
+.mode-btn svg{width:14px;height:14px}
+.mode-btn:hover{color:var(--fg)}
+.mode-btn.active{background:var(--bg-3);color:var(--fg);
+  box-shadow:0 1px 2px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.04)}
+
+.actions{display:flex;gap:4px;flex-shrink:0}
+.icon-btn{width:36px;height:36px;border-radius:8px;background:transparent;
+  border:1px solid transparent;color:var(--fg-2);cursor:pointer;display:flex;
+  align-items:center;justify-content:center;transition:all var(--t-fast);padding:0}
+.icon-btn svg{width:16px;height:16px}
+.icon-btn:hover{background:var(--bg-2);color:var(--fg);border-color:var(--line)}
+.icon-btn.active{background:var(--bg-3);color:var(--accent);border-color:var(--line)}
+
+/* ============ MAIN ============ */
+.main{flex:1 1 auto;display:flex;min-height:0;position:relative}
+.stage{flex:1 1 auto;position:relative;overflow:hidden;background:#050608;min-width:0}
+
+.view{position:absolute;inset:0;display:none}
+.view.active{display:block}
+.view.side-active{display:flex}
+
+.compare-view{cursor:grab;user-select:none;touch-action:none}
+.compare-view.panning{cursor:grabbing}
+.compare-view.cut-dragging{cursor:ew-resize}
+.compare-view.solo{cursor:default}
+.compare-view.solo.scale-zoom{cursor:grab}
+.layer{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.layer img{position:absolute;left:50%;top:50%;transform-origin:center center;
+  user-select:none;-webkit-user-drag:none;pointer-events:none;max-width:none;
+  image-rendering:high-quality}
+.layer-after{clip-path:inset(0 0 0 var(--cut,50%))}
+
+.compare-view.solo .handle{display:none}
+.compare-view.solo .badge-before{display:none}
+.compare-view.solo .badge-after{display:none}
+.compare-view.solo .solo-badge{display:flex}
+.solo-badge{display:none;position:absolute;top:14px;left:50%;transform:translateX(-50%);
+  padding:5px 14px;border-radius:999px;background:rgba(8,9,12,.7);
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  font-size:11px;letter-spacing:1.6px;font-weight:700;text-transform:uppercase;
+  border:1px solid rgba(255,255,255,.08);pointer-events:none;z-index:4;
+  align-items:center;gap:8px;color:#fff;transition:color .12s}
+.solo-badge:before{content:"";width:7px;height:7px;border-radius:50%;background:var(--after);
+  transition:background .12s}
+.solo-badge.is-before:before{background:var(--before)}
+.solo-badge .label-after{display:inline}
+.solo-badge .label-before{display:none}
+.solo-badge.is-before .label-after{display:none}
+.solo-badge.is-before .label-before{display:inline}
+
+.handle{position:absolute;top:0;bottom:0;left:50%;width:2px;pointer-events:none;z-index:5}
+.handle-line{position:absolute;top:0;bottom:0;left:0;right:0;background:rgba(255,255,255,.95);
+  box-shadow:0 0 0 1px rgba(0,0,0,.4),0 0 18px rgba(0,0,0,.55)}
+.knob{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  width:46px;height:46px;border-radius:50%;background:#fff;
+  box-shadow:0 4px 22px rgba(0,0,0,.55),0 0 0 1px rgba(0,0,0,.2);
+  display:flex;align-items:center;justify-content:center;color:#0e0f13;
+  cursor:ew-resize;pointer-events:auto;touch-action:none;transition:transform var(--t-fast)}
+.knob:active{transform:translate(-50%,-50%) scale(.96)}
+.knob svg{width:20px;height:20px}
+
+.badge{position:absolute;top:14px;padding:5px 10px;border-radius:999px;
+  background:rgba(8,9,12,.7);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  font-size:11px;letter-spacing:1.4px;font-weight:700;text-transform:uppercase;
+  border:1px solid rgba(255,255,255,.08);pointer-events:none;z-index:4;
+  display:flex;align-items:center;gap:6px}
+.badge:before{content:"";width:6px;height:6px;border-radius:50%;display:block}
+.badge-before{left:14px;color:#fff}
+.badge-before:before{background:var(--before)}
+.badge-after{right:14px;color:#fff}
+.badge-after:before{background:var(--after)}
+
+.side-view{background:#050608}
+.side-half{flex:1;position:relative;display:flex;align-items:center;justify-content:center;
+  overflow:hidden;min-width:0}
+.side-img-wrap{width:100%;height:100%;display:flex;align-items:center;justify-content:center;
+  padding:14px}
+.side-img-wrap img{max-width:100%;max-height:100%;object-fit:contain;display:block;
+  box-shadow:0 8px 30px rgba(0,0,0,.4)}
+.side-divider{flex:0 0 1px;background:var(--line)}
+
+.navbtn{position:absolute;top:50%;transform:translateY(-50%);width:44px;height:44px;
+  border-radius:50%;background:rgba(15,16,20,.75);border:1px solid rgba(255,255,255,.1);
+  color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  transition:background var(--t-fast),transform var(--t-fast),opacity var(--t-fast);z-index:6;padding:0}
+.navbtn svg{width:20px;height:20px}
+.navbtn:hover{background:rgba(35,38,48,.95);transform:translateY(-50%) scale(1.06)}
+.navprev{left:12px}
+.navnext{right:12px}
+
+.overlay-bottom{position:absolute;left:0;right:0;bottom:14px;display:flex;
+  align-items:center;justify-content:center;gap:10px;pointer-events:none;z-index:6}
+.zoom-pill{display:flex;align-items:center;gap:2px;padding:4px;border-radius:999px;
+  background:rgba(15,16,20,.78);border:1px solid rgba(255,255,255,.1);
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);font-size:12px;
+  color:var(--fg);pointer-events:auto;font-feature-settings:"tnum"}
+.zoom-pill button{width:28px;height:28px;border-radius:50%;background:transparent;
+  border:none;color:var(--fg-2);cursor:pointer;display:flex;align-items:center;
+  justify-content:center;font-size:16px;line-height:1;transition:background var(--t-fast)}
+.zoom-pill button:hover{background:var(--bg-3);color:var(--fg)}
+.zoom-pill #zoomLabel{padding:0 8px;min-width:48px;text-align:center}
+
+.sidebar{flex:0 0 320px;background:var(--bg-1);border-left:1px solid var(--line);
+  overflow-y:auto;transition:flex-basis var(--t-med);scrollbar-width:thin;
+  scrollbar-color:var(--bg-3) transparent;display:flex;flex-direction:column}
+.sidebar::-webkit-scrollbar{width:6px}
+.sidebar::-webkit-scrollbar-thumb{background:var(--bg-3);border-radius:3px}
+.sidebar.collapsed{flex-basis:0;border-left-width:0}
+.sheet-handle{display:none}
+.side-content{padding:18px 18px 24px}
+.side-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;
+  margin-bottom:4px}
+.side-header h2{margin:0;font-size:16px;font-weight:600;letter-spacing:.2px;
+  word-break:break-all;line-height:1.3}
+.side-close{background:transparent;border:none;color:var(--fg-3);cursor:pointer;
+  width:30px;height:30px;border-radius:6px;font-size:22px;line-height:1;display:none;
+  align-items:center;justify-content:center;flex-shrink:0;margin:-4px -4px 0 0;padding:0}
+.side-close:hover{background:var(--bg-2);color:var(--fg)}
+.side-id{font-size:11px;color:var(--fg-3);text-transform:uppercase;letter-spacing:1.5px;
+  font-weight:600;margin-bottom:18px}
+.side-id span{color:var(--accent);font-family:ui-monospace,Consolas,monospace}
+
+.info-block{margin-bottom:18px;padding-bottom:18px;border-bottom:1px solid var(--line-2)}
+.info-block:last-child{border-bottom:0;margin-bottom:0;padding-bottom:0}
+.info-label{display:flex;align-items:center;gap:8px;font-size:11px;text-transform:uppercase;
+  letter-spacing:1.4px;font-weight:700;color:var(--fg-3);margin-bottom:10px}
+.info-dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+.info-dot.before{background:var(--before)}
+.info-dot.after{background:var(--after)}
+.info-row{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;
+  padding:5px 0;font-size:12.5px}
+.info-row .ik{color:var(--fg-3);flex-shrink:0;font-weight:500}
+.info-row .iv{color:var(--fg);text-align:right;word-break:break-all;min-width:0}
+
+.thumbstrip-wrap{flex:0 0 auto;background:linear-gradient(180deg,var(--bg-1),var(--bg));
+  border-top:1px solid var(--line);position:relative;display:flex;align-items:center}
+.thumbstrip{display:flex;gap:8px;padding:10px 14px;overflow-x:auto;flex:1;
+  scroll-behavior:smooth;scrollbar-width:thin;scrollbar-color:var(--bg-3) transparent}
+.thumbstrip::-webkit-scrollbar{height:6px}
+.thumbstrip::-webkit-scrollbar-thumb{background:var(--bg-3);border-radius:3px}
+.thumb{flex:0 0 auto;width:78px;height:78px;border-radius:8px;overflow:hidden;cursor:pointer;
+  border:2px solid transparent;background:var(--bg-2);position:relative;
+  transition:transform var(--t-fast),border-color var(--t-fast)}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.thumb:hover{transform:translateY(-2px)}
+.thumb.active{border-color:var(--accent);box-shadow:0 0 0 2px rgba(255,174,60,.2)}
+.thumb .num{position:absolute;left:5px;top:4px;font-size:10px;font-weight:700;color:#fff;
+  background:rgba(0,0,0,.55);padding:1px 5px;border-radius:4px;
+  font-family:ui-monospace,Consolas,monospace}
+
+.modal{position:fixed;inset:0;background:rgba(5,6,8,.78);backdrop-filter:blur(8px);
+  -webkit-backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;
+  z-index:100;padding:20px}
+.modal[hidden]{display:none}
+.modal-card{background:var(--bg-1);border:1px solid var(--line);border-radius:var(--r-lg);
+  padding:24px 26px;max-width:560px;width:100%;max-height:90vh;overflow-y:auto;
+  position:relative;box-shadow:var(--shadow)}
+.modal-card h3{margin:0 0 18px;font-size:16px}
+.modal-close{position:absolute;top:14px;right:14px;width:32px;height:32px;
+  background:transparent;border:none;color:var(--fg-3);cursor:pointer;font-size:22px;
+  line-height:1;border-radius:6px;display:flex;align-items:center;justify-content:center;padding:0}
+.modal-close:hover{background:var(--bg-2);color:var(--fg)}
+.kb-section{font-size:11px;text-transform:uppercase;letter-spacing:1.4px;font-weight:700;
+  color:var(--fg-3);margin:18px 0 10px}
+.kb-grid{display:grid;grid-template-columns:auto 1fr;gap:10px 16px;font-size:13px;align-items:center}
+.kb-grid > div:nth-child(odd){display:flex;gap:4px;flex-wrap:wrap}
+.kb-grid > div:nth-child(even){color:var(--fg-2)}
+
+.hint{position:absolute;left:50%;bottom:74px;transform:translateX(-50%);
+  background:rgba(15,16,20,.85);border:1px solid rgba(255,255,255,.08);border-radius:999px;
+  padding:8px 14px;font-size:12px;color:var(--fg-2);
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  pointer-events:none;z-index:30;opacity:0;transition:opacity .4s}
+.hint.show{opacity:1}
+
+@media (max-width:900px){
+  .topbar{height:50px;padding:0 12px;gap:8px}
+  .modes{margin-left:auto;margin-right:0}
+  .mode-btn span{display:none}
+  .mode-btn{padding:7px 10px}
+  .mode-btn svg{width:16px;height:16px}
+  .brand .counter{display:none}
+  .icon-btn{width:34px;height:34px}
+  #btnHelp{display:none}
+
+  .main{flex-direction:column}
+  .sidebar{position:fixed;bottom:0;left:0;right:0;top:auto;z-index:50;
+    flex:none;width:100%;max-height:72dvh;border-left:none;border-top:1px solid var(--line);
+    border-radius:18px 18px 0 0;transform:translateY(100%);
+    box-shadow:0 -10px 40px rgba(0,0,0,.5);transition:transform var(--t-med)}
+  .sidebar.open{transform:translateY(0)}
+  .sheet-handle{display:block;width:42px;height:4px;background:var(--fg-4);
+    border-radius:2px;margin:8px auto 4px;opacity:.6;flex-shrink:0}
+  .side-close{display:flex}
+  .side-content{padding:10px 18px 28px}
+
+  .navbtn{width:38px;height:38px}
+  .navprev{left:8px}
+  .navnext{right:8px}
+  .knob{width:42px;height:42px}
+  .badge{font-size:10px;padding:4px 8px;letter-spacing:1.2px}
+  .thumb{width:62px;height:62px}
+  .thumbstrip{padding:8px 12px}
+  .side-img-wrap{padding:8px}
+  .upload-card{padding:32px 24px}
+  .upload-card h1{font-size:19px}
+}
+@media (max-width:900px) and (orientation:portrait){
+  .side-view{flex-direction:column}
+  .side-divider{flex:0 0 1px;width:100%;height:1px;background:var(--line)}
+}
+@media (max-width:480px){
+  .topbar{padding:0 10px;gap:6px}
+  .brand h1{font-size:13px}
+  .modes{padding:2px}
+  .mode-btn{padding:6px 9px}
+  .icon-btn{width:32px;height:32px}
+  .icon-btn svg{width:15px;height:15px}
+}
+.app.ui-hidden .topbar,.app.ui-hidden .thumbstrip-wrap,
+.app.ui-hidden .navbtn,.app.ui-hidden .overlay-bottom,
+.app.ui-hidden .badge,.app.ui-hidden .solo-badge{opacity:0;pointer-events:none;
+  transition:opacity var(--t-med)}
+</style>
+</head>
+<body>
+
+<!-- ============ UPLOAD SCREEN ============ -->
+<div class="upload-screen" id="uploadScreen">
+  <div class="upload-card" id="uploadCard">
+    <div class="upload-logo"><span class="dot"></span><span class="dot"></span></div>
+    <h1>Comparador <em>Antes / Depois</em></h1>
+    <p>Selecione ou solte aqui os arquivos. As fotos ficam <b>apenas no seu navegador</b> — nada é enviado pra nenhum servidor.</p>
+    <label class="upload-btn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      Selecionar fotos
+      <input type="file" id="fileInput" multiple accept="image/*" style="display:none">
+    </label>
+    <div class="upload-error" id="uploadError" hidden></div>
+    <div class="upload-rules">
+      <b>Como pareia:</b>
+      <ul>
+        <li>Pareia pelos <b>4 dígitos consecutivos depois de um <code>_</code></b> (ex.: <code>IMG_<b>0093</b></code>, <code>GAB_<b>0074</b></code>).</li>
+        <li>Em cada par, o nome <b>mais curto</b> é o "Antes"; o mais longo (com sufixo/prefixo extra) é o "Depois".</li>
+        <li>Ex: <code>IMG_0093.jpg</code> + <code>IMG_0093_edited.jpg</code> &nbsp;ou&nbsp; <code>edited_IMG_0093.jpg</code>.</li>
+      </ul>
+    </div>
+    <div class="upload-priv">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      Processado 100% no seu navegador. Tudo é descartado quando você fechar.
+    </div>
+  </div>
+</div>
+
+<!-- ============ LOADING SCREEN ============ -->
+<div class="loading-screen" id="loadingScreen" hidden>
+  <div class="spinner"></div>
+  <div class="loading-text" id="loadingText">Carregando…</div>
+  <div class="loading-bar"><div class="loading-bar-fill" id="loadingFill"></div></div>
+</div>
+
+<!-- ============ APP ============ -->
+<div class="app is-empty" id="app">
+
+<header class="topbar">
+  <div class="brand">
+    <div class="logo"><span class="dot dot-b"></span><span class="dot dot-a"></span></div>
+    <div class="brand-text">
+      <h1>Antes <span class="sep">/</span> <em>Depois</em></h1>
+      <span class="counter" id="counterText">— / —</span>
+    </div>
+  </div>
+
+  <nav class="modes" role="tablist" aria-label="Modo de visualização">
+    <button class="mode-btn active" data-mode="compare" title="Slider (S)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18"/><path d="M5 8 2 12l3 4"/><path d="M19 8l3 4-3 4"/></svg>
+      <span>Slider</span>
+    </button>
+    <button class="mode-btn" data-mode="side" title="Lado a Lado (S)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="8" height="16" rx="1"/><rect x="13" y="4" width="8" height="16" rx="1"/></svg>
+      <span>Lado a Lado</span>
+    </button>
+    <button class="mode-btn" data-mode="solo" title="Solo — segure Espaço para alternar (S)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+      <span>Solo</span>
+    </button>
+  </nav>
+
+  <div class="actions">
+    <button class="icon-btn" id="btnReload" title="Carregar outras fotos" aria-label="Recarregar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><polyline points="21 3 21 8 16 8"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><polyline points="3 21 3 16 8 16"/></svg>
+    </button>
+    <button class="icon-btn" id="btnInfo" title="Informações (I)" aria-label="Informações">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+    </button>
+    <button class="icon-btn" id="btnFs" title="Tela cheia (F)" aria-label="Tela cheia">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
+    </button>
+    <button class="icon-btn" id="btnHelp" title="Ajuda (?)" aria-label="Ajuda">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+    </button>
+  </div>
+</header>
+
+<div class="main">
+  <section class="stage">
+    <div class="view compare-view active" id="compareView">
+      <div class="layer layer-before"><img id="imgB" alt=""></div>
+      <div class="layer layer-after"><img id="imgA" alt=""></div>
+      <div class="badge badge-before">Antes</div>
+      <div class="badge badge-after">Depois</div>
+      <div class="solo-badge" id="soloBadge"><span class="label-after">Depois</span><span class="label-before">Antes</span></div>
+      <div class="handle" id="handle">
+        <div class="handle-line"></div>
+        <div class="knob" id="knob" aria-label="Mover slider">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8.5 5.5 3 12l5.5 6.5V14h7v4.5L21 12l-5.5-6.5V10h-7V5.5z"/></svg>
+        </div>
+      </div>
+    </div>
+    <div class="view side-view" id="sideView">
+      <div class="side-half side-before">
+        <div class="side-img-wrap"><img id="sideImgB" alt=""></div>
+        <div class="badge badge-before">Antes</div>
+      </div>
+      <div class="side-divider"></div>
+      <div class="side-half side-after">
+        <div class="side-img-wrap"><img id="sideImgA" alt=""></div>
+        <div class="badge badge-after">Depois</div>
+      </div>
+    </div>
+
+    <button class="navbtn navprev" id="prevBtn" aria-label="Anterior">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+    <button class="navbtn navnext" id="nextBtn" aria-label="Próxima">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+    </button>
+
+    <div class="overlay-bottom">
+      <div class="zoom-pill" id="zoomPill">
+        <button id="zoomOut" aria-label="Zoom out">−</button>
+        <span id="zoomLabel">100%</span>
+        <button id="zoomIn" aria-label="Zoom in">+</button>
+        <button id="zoomReset" aria-label="Resetar" title="Resetar (0)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="hint" id="hint"></div>
+  </section>
+
+  <aside class="sidebar" id="sidebar">
+    <div class="sheet-handle"></div>
+    <div class="side-content">
+      <div class="side-header">
+        <h2 id="pairTitle">—</h2>
+        <button class="side-close" id="sidebarClose" aria-label="Fechar painel">×</button>
+      </div>
+      <div class="side-id">ID <span id="pairId">—</span></div>
+
+      <div class="info-block">
+        <div class="info-label"><span class="info-dot before"></span>Antes</div>
+        <div class="info-row"><span class="ik">Arquivo</span><span class="iv mono" id="iB-name">—</span></div>
+        <div class="info-row"><span class="ik">Dimensões</span><span class="iv mono" id="iB-dim">—</span></div>
+        <div class="info-row"><span class="ik">Tamanho</span><span class="iv mono" id="iB-size">—</span></div>
+      </div>
+      <div class="info-block">
+        <div class="info-label"><span class="info-dot after"></span>Depois</div>
+        <div class="info-row"><span class="ik">Arquivo</span><span class="iv mono" id="iA-name">—</span></div>
+        <div class="info-row"><span class="ik">Dimensões</span><span class="iv mono" id="iA-dim">—</span></div>
+        <div class="info-row"><span class="ik">Tamanho</span><span class="iv mono" id="iA-size">—</span></div>
+      </div>
+      <div class="info-block exif" id="exifBlock">
+        <div class="info-label">Captura</div>
+        <div class="info-row" data-k="date"><span class="ik">Data</span><span class="iv mono">—</span></div>
+        <div class="info-row" data-k="camera"><span class="ik">Câmera</span><span class="iv">—</span></div>
+        <div class="info-row" data-k="lens"><span class="ik">Lente</span><span class="iv">—</span></div>
+        <div class="info-row" data-k="iso"><span class="ik">ISO</span><span class="iv mono">—</span></div>
+        <div class="info-row" data-k="aperture"><span class="ik">Abertura</span><span class="iv mono">—</span></div>
+        <div class="info-row" data-k="shutter"><span class="ik">Obturador</span><span class="iv mono">—</span></div>
+        <div class="info-row" data-k="focal"><span class="ik">Focal</span><span class="iv mono">—</span></div>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<footer class="thumbstrip-wrap">
+  <div class="thumbstrip" id="strip"></div>
+</footer>
+
+<div class="modal" id="helpModal" hidden>
+  <div class="modal-card">
+    <button class="modal-close" id="helpClose" aria-label="Fechar">×</button>
+    <h3>Atalhos & Gestos</h3>
+    <div class="kb-section">Teclado</div>
+    <div class="kb-grid">
+      <div><kbd>←</kbd><kbd>→</kbd></div><div>Navegar entre fotos</div>
+      <div><kbd>Espaço</kbd></div><div>(Modo Solo) Segurar para alternar Antes/Depois</div>
+      <div><kbd>[</kbd><kbd>]</kbd></div><div>Mover slider 5%</div>
+      <div><kbd>+</kbd><kbd>−</kbd></div><div>Zoom in / out</div>
+      <div><kbd>0</kbd> ou <kbd>Esc</kbd></div><div>Resetar zoom</div>
+      <div><kbd>F</kbd></div><div>Tela cheia</div>
+      <div><kbd>I</kbd></div><div>Painel de informações</div>
+      <div><kbd>S</kbd></div><div>Trocar de modo</div>
+      <div><kbd>?</kbd></div><div>Esta ajuda</div>
+    </div>
+    <div class="kb-section">Mouse</div>
+    <div class="kb-grid">
+      <div>Roda</div><div>Zoom (ancorado ao cursor)</div>
+      <div>Arrastar</div><div>Mover slider · Pan quando há zoom</div>
+      <div>Pressionar (Solo)</div><div>Segurar para alternar Antes/Depois</div>
+      <div>Duplo clique no knob</div><div>Slider volta ao centro (50%)</div>
+      <div>Duplo clique</div><div>Resetar zoom</div>
+    </div>
+    <div class="kb-section">Toque</div>
+    <div class="kb-grid">
+      <div>Pinça</div><div>Zoom</div>
+      <div>Arrasto horizontal</div><div>Mover slider · flick rápido troca foto</div>
+      <div>Toque duplo</div><div>Resetar zoom</div>
+      <div>Toque simples</div><div>Mostrar/ocultar interface</div>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<script>
+/* ============================================================================
+   COMPARADOR ANTES / DEPOIS — script principal
+
+   Este arquivo é dividido em duas partes lógicas:
+
+   PARTE 1 — UPLOAD & PAREAMENTO
+     Roda imediatamente no carregamento da página. Configura a tela
+     de upload, drag-and-drop, leitura dos arquivos selecionados,
+     pareamento por nome, geração de thumbs via canvas e parsing
+     de EXIF. Quando termina, chama startApp(DATA).
+
+   PARTE 2 — APP COMPARADOR (função startApp)
+     Recebe o array DATA pronto. Toma conta de toda a interatividade:
+     navegação entre pares, modos de visualização, slider arrastável,
+     zoom/pan, gestos de toque, atalhos de teclado, painel lateral
+     e modal de ajuda.
+
+   Toda a lógica é encapsulada em uma IIFE pra não vazar nomes pro
+   escopo global da página.
+   ========================================================================== */
+(function(){
+'use strict';
+
+/* ============================================================================
+   PARTE 1 — UPLOAD & PAREAMENTO
+   ========================================================================== */
+
+// Refs dos elementos da tela de upload e da tela de carregamento.
+// Capturadas uma vez no início pra evitar getElementById repetido.
+const uploadScreen = document.getElementById('uploadScreen');
+const uploadCard = document.getElementById('uploadCard');
+const uploadError = document.getElementById('uploadError');
+const fileInput = document.getElementById('fileInput');
+const loadingScreen = document.getElementById('loadingScreen');
+const loadingText = document.getElementById('loadingText');
+const loadingFill = document.getElementById('loadingFill');
+
+/** Mostra mensagem de erro embaixo do botão de upload. */
+function showError(msg){
+  uploadError.textContent = msg;
+  uploadError.hidden = false;
+}
+/** Esconde a caixa de erro (chamada antes de cada novo upload). */
+function clearError(){ uploadError.hidden = true; }
+
+// Extensões aceitas. AVIF e HEIC dependem de suporte do navegador
+// (Safari decodifica HEIC; Chrome/Firefox ainda não em geral).
+const IMG_RE = /\.(jpe?g|png|webp|gif|bmp|avif|heic)$/i;
+
+/**
+ * Extrai o ID de pareamento a partir do nome de arquivo.
+ *
+ * Regra: pega os 4 dígitos consecutivos que vêm logo depois de
+ * um "_" e que NÃO fazem parte de um número maior. O lookahead
+ * (?=_|$) garante que o próximo caractere é underscore ou fim
+ * do nome (sem extensão), evitando casar dentro de "00935".
+ *
+ * Exemplos:
+ *   "IMG_0093.jpg"          -> "0093"
+ *   "edited_IMG_0093.jpg"   -> "0093"
+ *   "GAB_0074_v2.jpg"       -> "0074"
+ *   "DSC00935.jpg"          -> null (não tem _ antes)
+ *
+ * @param {string} name  Nome do arquivo com extensão.
+ * @returns {string|null} ID de 4 dígitos, ou null se não casar.
+ */
+function parseId(name){
+  // Remove a extensão pra não confundir com a regex.
+  const stem = name.replace(/\.[^.]+$/, '');
+  const m = stem.match(/_(\d{4})(?=_|$)/);
+  return m ? m[1] : null;
+}
+
+/**
+ * Agrupa uma lista de File em pares "antes"/"depois".
+ *
+ * Heurística:
+ *   1. Agrupa todos os arquivos pelo ID de 4 dígitos extraído.
+ *   2. Em cada grupo, ordena por COMPRIMENTO de nome (e alfabético
+ *      como desempate). O nome mais curto vira o "antes" (assume-se
+ *      ser o original, sem decoração); o mais longo vira o "depois".
+ *   3. Grupos com menos de 2 arquivos são descartados.
+ *
+ * Por que comprimento de nome? Porque a versão editada normalmente
+ * adiciona prefixo OU sufixo (ex.: "_edited", "_v2", "edited_"),
+ * tornando seu nome estritamente maior que o original.
+ *
+ * @param {File[]} files  Lista plana de arquivos a parear.
+ * @returns {{id:string, before:File, after:File}[]}  Pares ordenados por ID.
+ */
+function pairFiles(files){
+  const groups = {};
+  for (const f of files){
+    const id = parseId(f.name);
+    if (id) (groups[id] ||= []).push(f);
+  }
+  const pairs = [];
+  // Object.keys retorna em ordem de inserção; sort() garante ordem
+  // alfanumérica estável dos IDs (0074, 0082, 0094...).
+  Object.keys(groups).sort().forEach(id => {
+    const group = groups[id];
+    if (group.length < 2) return;
+    group.sort((a, b) => a.name.length - b.name.length || a.name.localeCompare(b.name));
+    pairs.push({id, before: group[0], after: group[group.length - 1]});
+  });
+  return pairs;
+}
+
+/**
+ * Formata um número de bytes em string legível ("4.9 MB", "812 KB").
+ * Usa base 1024 e divide até a primeira unidade que dê <1024.
+ *
+ * @param {number} n  Tamanho em bytes.
+ * @returns {string}  Ex.: "812 KB", "4.9 MB", "1.2 GB".
+ */
+function fmtSize(n){
+  const u = ['B','KB','MB','GB'];
+  let x = n;
+  for (let i = 0; i < u.length; i++){
+    if (x < 1024 || i === u.length-1) return (i===0 ? Math.round(x) : x.toFixed(1)) + ' ' + u[i];
+    x /= 1024;
+  }
+}
+
+/**
+ * Carrega uma imagem do File no DOM (via Object URL) e, opcionalmente,
+ * gera uma thumbnail compactada via canvas.
+ *
+ * Object URL: URL "blob:..." que aponta para o File na RAM. Não há
+ * cópia dos bytes — a referência morre quando chamamos
+ * URL.revokeObjectURL ou a página é recarregada.
+ *
+ * Thumbnail: redimensiona pra 240px (lado maior) e exporta em JPEG
+ * 72% via toDataURL. Isso poupa GPU quando a strip mostra muitas
+ * miniaturas ao mesmo tempo.
+ *
+ * @param {File} file       Arquivo de imagem.
+ * @param {boolean} makeThumb  Se true, gera também a thumbnail.
+ * @returns {Promise<{fullUrl:string, thumbUrl:string|null, w:number, h:number}>}
+ */
+function processImage(file, makeThumb){
+  return new Promise((resolve, reject) => {
+    const fullUrl = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const w = img.naturalWidth, h = img.naturalHeight;
+      let thumbUrl = null;
+      if (makeThumb){
+        // Calcula escala pra caber numa caixa de 240px.
+        const maxDim = 240;
+        const s = Math.min(1, maxDim / Math.max(w, h));
+        const tw = Math.round(w * s), th = Math.round(h * s);
+        const c = document.createElement('canvas');
+        c.width = tw; c.height = th;
+        c.getContext('2d').drawImage(img, 0, 0, tw, th);
+        try {
+          // toDataURL pode lançar SecurityError em casos exóticos
+          // (canvas "tainted"); cai no fullUrl como fallback.
+          thumbUrl = c.toDataURL('image/jpeg', 0.72);
+        } catch(_){ thumbUrl = fullUrl; }
+      }
+      resolve({fullUrl, thumbUrl, w, h});
+    };
+    img.onerror = () => { URL.revokeObjectURL(fullUrl); reject(new Error('Falha lendo ' + file.name)); };
+    img.src = fullUrl;
+  });
+}
+
+/* ---------------------------------------------------------------------------
+   PARSER EXIF MÍNIMO (apenas JPEG)
+
+   Estrutura do JPEG relevante para nós:
+
+     SOI         (0xFFD8)        2 bytes — marca início do JPEG
+     APPn        (0xFFE0..0xFFEF) marker + tamanho + payload
+     ...
+     SOS, DCT, EOI...
+
+   O EXIF mora dentro de um marker APP1 (0xFFE1) cujo payload começa
+   com a string "Exif\0\0" (6 bytes) seguida de um "TIFF header":
+
+     II ou MM    (0x4949 / 0x4D4D)   ordem de bytes (little/big endian)
+     0x002A      (constante)         identifica TIFF
+     offset      (uint32)            offset pro IFD0 (relativo ao TIFF base)
+
+   Cada IFD ("Image File Directory") é uma tabela:
+     count (u16) seguido de N entradas de 12 bytes cada:
+       [tag u16][type u16][count u32][value-or-offset u32]
+
+   Se o valor cabe em 4 bytes, fica no campo direto. Senão, o campo
+   é um OFFSET pro lugar onde os bytes estão (relativo ao TIFF base).
+
+   O IFD0 contém metadados gerais (Make, Model, DateTime). O EXIF
+   sub-IFD (apontado pela tag 0x8769) tem os dados de captura
+   (ISO, FNumber, ExposureTime, FocalLength, LensModel).
+
+   Tipos relevantes:
+     2  ASCII (string null-terminada)
+     3  SHORT (u16)
+     4  LONG  (u32)
+     5  RATIONAL (par u32 num/den)
+     10 SRATIONAL (par i32 num/den)
+
+   Lemos só os primeiros 128KB do arquivo — o EXIF sempre fica no
+   começo do JPEG, antes dos dados da imagem.
+   --------------------------------------------------------------------------- */
+
+/**
+ * Tenta ler EXIF de um File JPEG. Sempre resolve com objeto (vazio
+ * em caso de erro/ausência) — nunca rejeita, pra não quebrar o load.
+ *
+ * @param {File} file
+ * @returns {Promise<Object>}  Mapa {camera, lens, date, iso, aperture, shutter, focal}.
+ */
+async function parseExif(file){
+  if (!/jpe?g$/i.test(file.name) && file.type !== 'image/jpeg') return {};
+  try {
+    // Slice + arrayBuffer só os primeiros 128KB — economia de RAM.
+    const buf = await file.slice(0, Math.min(file.size, 131072)).arrayBuffer();
+    const v = new DataView(buf);
+    // Confere o magic SOI (0xFFD8) — é o "JPEG?" check.
+    if (v.getUint16(0) !== 0xFFD8) return {};
+    // Caminhar pelos markers até achar APP1 com cabeçalho "Exif".
+    let p = 2;
+    while (p + 4 < v.byteLength){
+      if (v.getUint8(p) !== 0xFF) break;            // markers começam com 0xFF
+      const marker = v.getUint8(p + 1);
+      const size = v.getUint16(p + 2);              // tamanho big-endian, inclui os 2 bytes do size
+      // 0xE1 = APP1; "Exif" = 0x45786966; \0\0 = 0x0000.
+      if (marker === 0xE1
+          && v.getUint32(p + 4) === 0x45786966
+          && v.getUint16(p + 8) === 0x0000){
+        // O TIFF header começa logo depois de "Exif\0\0".
+        return readTiff(v, p + 10);
+      }
+      p += 2 + size;                                // avança pro próximo marker
+      if (size === 0 || p > v.byteLength) break;    // segurança contra arquivos malformados
+    }
+  } catch(_){
+    // Silencia: arquivo corrompido, EXIF ausente, fora dos 128KB etc.
+  }
+  return {};
+}
+
+/**
+ * Decodifica o header TIFF e lê IFD0 + EXIF sub-IFD.
+ *
+ * @param {DataView} v   Buffer da slice do arquivo.
+ * @param {number} base  Offset onde o TIFF começa (relativo ao buffer).
+ * @returns {Object}     EXIF formatado (passado por formatExif).
+ */
+function readTiff(v, base){
+  // 0x4949 = "II" = little-endian, 0x4D4D = "MM" = big-endian.
+  // DataView aceita um booleano "littleEndian" nos getters.
+  const le = v.getUint16(base) === 0x4949;
+  const u16 = (o) => v.getUint16(o, le);
+  const u32 = (o) => v.getUint32(o, le);
+  const i32 = (o) => v.getInt32(o, le);
+  // Sanity: deve ter 0x002A (42 — "the answer") na posição base+2.
+  if (u16(base + 2) !== 0x002A) return {};
+  // IFD0 começa em (base + offset_armazenado_em_base+4).
+  const ifd0Off = base + u32(base + 4);
+  const tags = readIfd(v, ifd0Off, base, le, u16, u32, i32);
+  // Tag 0x8769 = ExifIFDPointer; aponta pro sub-IFD com dados de captura.
+  let exifTags = {};
+  if (tags[0x8769]) {
+    try { exifTags = readIfd(v, base + tags[0x8769], base, le, u16, u32, i32); } catch(_){}
+  }
+  // Concatena IFD0 + EXIF: chaves do EXIF têm precedência caso conflitem.
+  return formatExif({...tags, ...exifTags});
+}
+
+/**
+ * Lê uma tabela IFD e retorna {tag: valor_decodificado}.
+ *
+ * Lê só os tipos que precisamos (2/3/4/5/10) — silenciosamente
+ * pula qualquer outro (ex.: BYTE, UNDEFINED, FLOAT).
+ *
+ * @param {DataView} v     Buffer.
+ * @param {number} ifdOff  Onde a tabela IFD começa.
+ * @param {number} base    Onde o TIFF começa (pra resolver offsets).
+ * @param {boolean} le     Endianness.
+ * @param u16, u32, i32    Helpers já configurados pro endianness.
+ */
+function readIfd(v, ifdOff, base, le, u16, u32, i32){
+  const count = u16(ifdOff);
+  const tags = {};
+  for (let i = 0; i < count; i++){
+    const e = ifdOff + 2 + i * 12;                  // entrada começa após o count
+    if (e + 12 > v.byteLength) break;
+    const tag = u16(e);
+    const type = u16(e + 2);
+    const num = u32(e + 4);                         // quantidade de valores deste tipo
+    const valOff = e + 8;                           // ou o valor in-line, ou um offset
+    let value;
+    try {
+      if (type === 2){
+        // ASCII: pode caber inline (até 4 chars) ou estar em offset.
+        const total = num;
+        const dOff = total <= 4 ? valOff : base + u32(valOff);
+        const bytes = [];
+        for (let j = 0; j < total && dOff + j < v.byteLength; j++){
+          const c = v.getUint8(dOff + j);
+          if (c === 0) break;                       // null-terminator
+          bytes.push(c);
+        }
+        value = String.fromCharCode.apply(null, bytes);
+      } else if (type === 3){
+        value = u16(valOff);                        // SHORT
+      } else if (type === 4){
+        value = u32(valOff);                        // LONG
+      } else if (type === 5){
+        // RATIONAL ocupa 8 bytes — sempre via offset.
+        const dOff = base + u32(valOff);
+        if (dOff + 8 > v.byteLength) continue;
+        const n = u32(dOff), d = u32(dOff + 4);
+        value = d === 0 ? 0 : n / d;
+      } else if (type === 10){
+        // SRATIONAL (signed rational) — usado p/ ApertureValue,
+        // ShutterSpeedValue (logarítmicos), etc.
+        const dOff = base + u32(valOff);
+        if (dOff + 8 > v.byteLength) continue;
+        const n = i32(dOff), d = i32(dOff + 4);
+        value = d === 0 ? 0 : n / d;
+      } else continue;                              // tipo não suportado
+      tags[tag] = value;
+    } catch(_){
+      // Tag corrompida — ignora e segue.
+    }
+  }
+  return tags;
+}
+
+/**
+ * Mapa de tags numéricas EXIF -> objeto humano amigável.
+ * Constantes hex são as IDs oficiais do EXIF spec.
+ */
+function formatExif(t){
+  const out = {};
+  // Make + Model (0x010F + 0x0110). Concatena se Model não começar com Make
+  // (evita "Canon Canon EOS R5").
+  const make = t[0x010F];
+  const model = t[0x0110];
+  if (make || model){
+    let m = (model || '').trim();
+    let mk = (make || '').trim();
+    if (mk && m && !m.toLowerCase().startsWith(mk.toLowerCase())) m = mk + ' ' + m;
+    out.camera = (m || mk).trim();
+  }
+  // 0xA434 = LensModel.
+  const lens = t[0xA434];
+  if (lens) out.lens = String(lens).trim();
+  // DateTimeOriginal (0x9003) é o ideal; fallback pra DateTime (0x0132)
+  // que registra a última modificação. Formato EXIF: "YYYY:MM:DD HH:MM:SS";
+  // troco os primeiros : por - pra ficar mais legível.
+  const date = t[0x9003] || t[0x0132];
+  if (date){
+    out.date = String(date).replace(/^(\d{4}):(\d{2}):(\d{2})/, '$1-$2-$3').trim();
+  }
+  // ISO: 0x8827 (legacy) ou 0x8833 (PhotographicSensitivity moderno).
+  const iso = t[0x8827] || t[0x8833];
+  if (iso) out.iso = `ISO ${iso}`;
+  // FNumber (0x829D) — abertura como número decimal (ex.: 2.8).
+  const fn = t[0x829D];
+  if (fn) out.aperture = `f/${(+fn).toFixed(1)}`;
+  // ExposureTime (0x829A) em segundos. Se >=1s, mostra em segundos;
+  // senão converte pra fração 1/N.
+  const exp = t[0x829A];
+  if (exp){
+    if (exp >= 1) out.shutter = `${(+exp).toFixed(1)}s`;
+    else out.shutter = `1/${Math.round(1/exp)}s`;
+  }
+  // FocalLength (0x920A) em mm.
+  const fl = t[0x920A];
+  if (fl) out.focal = `${Math.round(+fl)}mm`;
+  return out;
+}
+
+/* ---------------------------------------------------------------------------
+   Orquestrador: dado um FileList, valida, pareia e dispara startApp.
+   Roda quando o usuário escolhe arquivos pelo input ou solta no drop area.
+   --------------------------------------------------------------------------- */
+
+/**
+ * Pipeline completo: filtrar imagens -> parear -> carregar tudo -> abrir app.
+ * Atualiza a barra de progresso conforme processa cada par.
+ *
+ * @param {FileList|File[]} fileList
+ */
+async function handleFiles(fileList){
+  clearError();
+
+  // Filtra só extensões reconhecidas; também aceita por MIME type
+  // (alguns navegadores omitem extensão em drag-and-drop de fontes
+  // exóticas, mas preenchem file.type).
+  const files = [...fileList].filter(f => IMG_RE.test(f.name) || (f.type && f.type.startsWith('image/')));
+  if (files.length < 2){
+    showError('Selecione pelo menos 2 imagens.');
+    return;
+  }
+  const pairs = pairFiles(files);
+  if (!pairs.length){
+    showError('Nenhum par detectado. Verifique se os nomes têm 4 dígitos consecutivos depois de um "_" (ex.: IMG_0093.jpg + IMG_0093_edit.jpg).');
+    return;
+  }
+
+  // Troca a tela de upload pela de loading.
+  uploadScreen.hidden = true;
+  loadingScreen.hidden = false;
+  loadingText.textContent = `Lendo ${pairs.length} pares…`;
+
+  const data = [];
+  // Processa par a par, sequencialmente, pra dar feedback visual e
+  // não saturar o decoder com 50+ imagens em paralelo.
+  for (let i = 0; i < pairs.length; i++){
+    const p = pairs[i];
+    loadingFill.style.width = `${(i / pairs.length) * 100}%`;
+    loadingText.textContent = `Processando ${i+1} / ${pairs.length}: ${p.id}`;
+    try {
+      // Dentro do par, paraleliza (Promise.all): leitura do "antes",
+      // "depois" e EXIF. O thumb é gerado só do "antes" pra economizar
+      // — ele é o que aparece na strip.
+      const [bRes, aRes, exif] = await Promise.all([
+        processImage(p.before, true),
+        processImage(p.after, false),
+        parseExif(p.before),
+      ]);
+      data.push({
+        id: p.id,
+        // "b" = before (antes/original); "a" = after (depois/editado).
+        b: {name: p.before.name, src: bRes.fullUrl, w: bRes.w, h: bRes.h, size: fmtSize(p.before.size)},
+        a: {name: p.after.name, src: aRes.fullUrl, w: aRes.w, h: aRes.h, size: fmtSize(p.after.size)},
+        t: bRes.thumbUrl,                       // thumb (data URL JPEG comprimido)
+        exif,
+      });
+    } catch(err){
+      // Não interrompe o lote por causa de um par com problema.
+      console.warn('Skipped pair', p.id, err);
+    }
+  }
+  loadingFill.style.width = '100%';
+  if (!data.length){
+    // Volta pra tela de upload com aviso.
+    loadingScreen.hidden = true;
+    uploadScreen.hidden = false;
+    showError('Não consegui carregar nenhuma das imagens.');
+    return;
+  }
+  // Pequeno timeout pra a animação da barra terminar visualmente.
+  setTimeout(() => {
+    loadingScreen.hidden = true;
+    startApp(data);
+  }, 150);
+}
+
+/* ---------------------------------------------------------------------------
+   Input + drag-and-drop (fonte de arquivos pra handleFiles).
+   --------------------------------------------------------------------------- */
+
+fileInput.addEventListener('change', e => handleFiles(e.target.files));
+
+// "dragDepth" trata o problema do dragenter/dragleave disparar pra
+// cada filho ao mover sobre a árvore. A gente só remove a classe
+// is-drag quando profundidade volta a zero.
+let dragDepth = 0;
+window.addEventListener('dragenter', e => {
+  if (uploadScreen.hidden) return;
+  dragDepth++;
+  uploadScreen.classList.add('is-drag');
+});
+window.addEventListener('dragleave', e => {
+  if (uploadScreen.hidden) return;
+  dragDepth--;
+  if (dragDepth <= 0){ dragDepth = 0; uploadScreen.classList.remove('is-drag'); }
+});
+// preventDefault no dragover é OBRIGATÓRIO pro browser permitir drop.
+window.addEventListener('dragover', e => { e.preventDefault(); });
+window.addEventListener('drop', e => {
+  e.preventDefault();
+  dragDepth = 0;
+  uploadScreen.classList.remove('is-drag');
+  if (!uploadScreen.hidden && e.dataTransfer && e.dataTransfer.files){
+    handleFiles(e.dataTransfer.files);
+  }
+});
+
+/* ============================================================================
+   PARTE 2 — APP COMPARADOR
+
+   startApp() é chamada quando o array DATA está pronto. A função inteira
+   é uma closure: encapsula refs do DOM, estado e listeners.
+
+   FORMATO DO DATA (cada item é um par):
+     {
+       id: '0093',
+       b: {name, src, w, h, size},   // "antes" (before)
+       a: {name, src, w, h, size},   // "depois" (after)
+       t: '<data-url-thumb>',
+       exif: {camera, lens, date, iso, aperture, shutter, focal}
+     }
+
+   ESTADO PRINCIPAL:
+     current      índice do par sendo exibido
+     mode         'compare' (slider), 'side' (lado a lado), 'solo'
+     scale        zoom do usuário (1 = sem zoom, até 8x)
+     baseScale    fator pra fazer a imagem couber no viewer (object-fit:contain)
+     panX, panY   offset em px do centro da imagem (quando há zoom)
+     cut          posição do slider em % do viewer (0..100)
+     soloSide     em modo solo, qual lado está "estável" (after por padrão)
+     spaceHeld    Espaço está pressionado agora? (flip temporário em solo)
+     mouseHeld    Mouse pressionado em solo? (flip temporário também)
+   ========================================================================== */
+
+/**
+ * Inicializa toda a UI interativa com o array de pares.
+ * @param {Array} DATA  Pares carregados (vide formato acima).
+ */
+function startApp(DATA){
+  // Helper compacto pra evitar getElementById repetido.
+  const $ = id => document.getElementById(id);
+
+  // ----- Refs do DOM (capturadas uma vez) -----
+  const app = $('app');
+  const compareView = $('compareView');     // viewer dos modos slider/solo
+  const sideView = $('sideView');           // viewer do modo lado-a-lado
+  const imgB = $('imgB'), imgA = $('imgA'); // imagens do viewer compare
+  const sideImgB = $('sideImgB'), sideImgA = $('sideImgA'); // imagens do side
+  const handle = $('handle'), knob = $('knob');             // alça/manopla
+  const layerAfter = document.querySelector('.layer-after'); // camada clipada
+  const counterText = $('counterText');     // "3 / 21"
+  const zoomLabel = $('zoomLabel');         // "150%"
+  const zoomPill = $('zoomPill');           // controles flutuantes
+  const sidebar = $('sidebar');
+  const strip = $('strip');
+  const helpModal = $('helpModal');
+  const hint = $('hint');
+
+  // ----- Estado mutável -----
+  let current = 0;
+  let mode = 'compare';
+  let scale = 1, baseScale = 1, panX = 0, panY = 0;
+  let natW = 1, natH = 1;                   // dimensões nativas da imagem ativa
+  let cut = 50;
+  let viewerW = 1, viewerH = 1;             // dimensões em px do viewer
+  let sidebarOpen = window.matchMedia('(min-width: 901px)').matches;
+  let uiHidden = false;
+  let soloSide = 'after';
+  let spaceHeld = false;
+  let mouseHeld = false;
+  const isTouchDevice = window.matchMedia('(hover: none)').matches;
+
+  // Tira o "is-empty" pra revelar a UI (CSS faz visibility:hidden).
+  app.classList.remove('is-empty');
+
+  // ----- Construção da strip de miniaturas -----
+  // Uma <div.thumb> por par; guarda o índice via dataset.i pra o click.
+  DATA.forEach((item, i) => {
+    const t = document.createElement('div');
+    t.className = 'thumb';
+    t.dataset.i = i;
+    t.innerHTML = `<img loading="lazy" src="${item.t || item.b.src}" alt=""><span class="num">${item.id}</span>`;
+    t.addEventListener('click', () => load(i));
+    strip.appendChild(t);
+  });
+  /**
+   * Marca o thumb i como ativo (borda laranja) e centraliza-o
+   * na strip via scrollIntoView com block:nearest pra não rolar
+   * a página inteira.
+   */
+  function activateThumb(i){
+    document.querySelectorAll('.thumb').forEach((el, idx) =>
+      el.classList.toggle('active', idx === i));
+    const el = strip.children[i];
+    if (el) el.scrollIntoView({behavior:'smooth', inline:'center', block:'nearest'});
+  }
+
+  /**
+   * Carrega o par de índice i (com wrap-around). Atualiza:
+   *   - imagens do viewer compare e do viewer side
+   *   - dimensões CSS dos <img> (driven pelo "antes")
+   *   - baseScale pra fit-to-viewer
+   *   - reset do zoom/pan e do cut (50% em compare, side específico em solo)
+   *   - painel lateral com infos + EXIF
+   *
+   * Nota: as duas imagens (antes/depois) são forçadas ao MESMO retângulo
+   * do natural width/height do "antes". Isso pressupõe que aspect ratio
+   * é igual entre os dois (mesmo se a resolução variar) — o que casa com
+   * o caso de uso (recorte mantendo proporção, ou só compactar pós).
+   *
+   * @param {number} i
+   */
+  function load(i){
+    // Wrap-around (indo antes do 0 vai pro último; depois do último volta ao 0).
+    if (i < 0) i = DATA.length - 1;
+    if (i >= DATA.length) i = 0;
+    current = i;
+    const item = DATA[i];
+    counterText.textContent = `${i+1} / ${DATA.length}`;
+    activateThumb(i);
+    // Usa as dimensões do "antes" pra dimensionar AMBAS as camadas.
+    natW = item.b.w;
+    natH = item.b.h;
+    imgB.src = item.b.src;
+    imgA.src = item.a.src;
+    imgB.style.width = natW + 'px';
+    imgB.style.height = natH + 'px';
+    imgA.style.width = natW + 'px';
+    imgA.style.height = natH + 'px';
+    sideImgB.src = item.b.src;
+    sideImgA.src = item.a.src;
+    measureViewer();
+    baseScale = computeBaseScale();
+    reset();
+    if (mode === 'solo') applySolo(); else setCut(50);
+    updateInfoPanel(item);
+  }
+
+  /**
+   * Preenche o painel lateral com infos do par. Linhas EXIF sem
+   * valor são escondidas (display:none). Se nenhuma EXIF presente,
+   * o bloco "Captura" inteiro some.
+   */
+  function updateInfoPanel(item){
+    $('pairTitle').textContent = item.b.name;
+    $('pairId').textContent = item.id;
+    $('iB-name').textContent = item.b.name;
+    $('iB-dim').textContent = `${item.b.w} × ${item.b.h}`;
+    $('iB-size').textContent = item.b.size;
+    $('iA-name').textContent = item.a.name;
+    $('iA-dim').textContent = `${item.a.w} × ${item.a.h}`;
+    $('iA-size').textContent = item.a.size;
+    const exif = item.exif || {};
+    let any = false;
+    document.querySelectorAll('#exifBlock .info-row').forEach(row => {
+      const v = exif[row.dataset.k];
+      const valEl = row.querySelector('.iv');
+      if (v){ valEl.textContent = v; row.style.display = 'flex'; any = true; }
+      else row.style.display = 'none';
+    });
+    $('exifBlock').style.display = any ? 'block' : 'none';
+  }
+
+  /* ---- Math do viewer (transform / zoom / pan / cut) ----
+     A imagem fica posicionada com left:50%; top:50% (CSS) e o
+     transform faz translate(-50%,-50%) pra centralizar pelo
+     próprio centro. Aí sobrepomos translate(panX,panY) e
+     scale(baseScale * scale).
+        baseScale = fator pra encaixar a imagem inteira no viewer
+                    (é o "fit"; calculado em computeBaseScale)
+        scale     = zoom interativo do usuário (1..8)
+     Os dois <img> (antes/depois) recebem o MESMO transform — assim
+     ficam alinhados pixel-a-pixel pra comparação. */
+
+  /** Mede o viewer e guarda em viewerW/viewerH. */
+  function measureViewer(){
+    const r = compareView.getBoundingClientRect();
+    viewerW = r.width || 1; viewerH = r.height || 1;
+  }
+  /** Fator de escala pra fit-contain (object-fit: contain manualmente). */
+  function computeBaseScale(){
+    if (!natW || !natH) return 1;
+    return Math.min(viewerW / natW, viewerH / natH);
+  }
+  /** Aplica transform sincronizado nas duas <img> e atualiza o label. */
+  function applyTransform(){
+    const t = `translate(-50%,-50%) translate(${panX}px,${panY}px) scale(${baseScale*scale})`;
+    imgB.style.transform = t; imgA.style.transform = t;
+    zoomLabel.textContent = Math.round(scale * 100) + '%';
+    // Usado pelo CSS pra mudar o cursor (grab) quando há zoom.
+    compareView.classList.toggle('scale-zoom', scale > 1.001);
+  }
+  /** Move o slider clipando a layer-after via clip-path:inset(0 0 0 cut%). */
+  function setCut(pct){
+    cut = Math.max(0, Math.min(100, pct));
+    layerAfter.style.setProperty('--cut', cut + '%');
+    handle.style.left = cut + '%';
+  }
+  /** Volta ao "fit" puro (zoom 1, sem pan). */
+  function reset(){ scale = 1; panX = 0; panY = 0; applyTransform(); }
+  /**
+   * Limita panX/panY pra que a imagem não saia do viewer com zoom.
+   * Se a imagem renderizada é menor que o viewer (zoom muito leve),
+   * trava no centro (max=0).
+   */
+  function clampPan(){
+    const dispW = natW * baseScale * scale, dispH = natH * baseScale * scale;
+    const maxX = Math.max(0, (dispW - viewerW)/2), maxY = Math.max(0, (dispH - viewerH)/2);
+    panX = Math.max(-maxX, Math.min(maxX, panX));
+    panY = Math.max(-maxY, Math.min(maxY, panY));
+  }
+  /**
+   * Faz zoom mantendo o ponto (cx,cy) "ancorado" ao cursor — é
+   * o mouse-anchored zoom de programas tipo Photoshop/Lightroom.
+   *
+   * Math: convertemos (cx,cy) pra coordenadas locais da imagem,
+   * mudamos a escala, e recalculamos panX/panY pra que aquele
+   * mesmo ponto local volte a ficar sob o cursor.
+   *
+   * @param {number} newScale  Novo zoom desejado (clamp 1..8).
+   * @param {number} cx, cy    Ponto âncora em coords de tela (clientX/Y).
+   * @param {Object} [base]    Estado de referência (usado em pinch:
+   *                           a referência é o estado do início do gesto,
+   *                           não o instantâneo).
+   */
+  function setScaleAt(newScale, cx, cy, base){
+    newScale = Math.max(1, Math.min(8, newScale));
+    const refScale = base ? base.scale : scale;
+    const refPanX = base ? base.panX : panX;
+    const refPanY = base ? base.panY : panY;
+    // Centro da imagem na tela = centro do viewer + pan.
+    const centerX = viewerW/2 + refPanX, centerY = viewerH/2 + refPanY;
+    // Coordenada do cursor RELATIVA ao centro da imagem, em "px da imagem original".
+    const localX = (cx - centerX) / (baseScale * refScale);
+    const localY = (cy - centerY) / (baseScale * refScale);
+    // Recalcula pan pra fazer (localX,localY) cair de novo sob (cx,cy)
+    // depois da mudança de escala.
+    panX = cx - viewerW/2 - localX * baseScale * newScale;
+    panY = cy - viewerH/2 - localY * baseScale * newScale;
+    scale = newScale;
+    clampPan(); applyTransform();
+  }
+  /** Converte uma coordenada X de tela pra % do viewer (0..100). */
+  function pointerToCutPct(clientX){
+    const r = compareView.getBoundingClientRect();
+    return ((clientX - r.left) / r.width) * 100;
+  }
+
+  /**
+   * Em modo solo: define qual lado mostrar baseado em soloSide e
+   * qualquer "flip temporário" (Espaço ou mouse pressionado).
+   *
+   * Truque: reusa o mesmo mecanismo de cut do modo slider:
+   *   cut=0   → after totalmente visível (sem clip)
+   *   cut=100 → after totalmente clipada → mostra só o before
+   * O badge "Depois" troca pra "Antes" ao flippar.
+   */
+  function applySolo(){
+    const flipped = spaceHeld || mouseHeld;
+    const showing = (soloSide === 'after') !== flipped ? 'after' : 'before';
+    setCut(showing === 'after' ? 0 : 100);
+    $('soloBadge').classList.toggle('is-before', showing === 'before');
+  }
+
+  /**
+   * Troca o modo de visualização. Mostra/esconde os viewers
+   * apropriados, atualiza o highlight dos botões e re-mede
+   * o viewer (caso a layout-flow tenha mudado).
+   */
+  function setMode(newMode){
+    mode = newMode;
+    const isCompareLike = (newMode === 'compare' || newMode === 'solo');
+    compareView.classList.toggle('active', isCompareLike);
+    compareView.classList.toggle('solo', newMode === 'solo');
+    sideView.classList.toggle('active', newMode === 'side');
+    sideView.classList.toggle('side-active', newMode === 'side');
+    document.querySelectorAll('.mode-btn').forEach(b =>
+      b.classList.toggle('active', b.dataset.mode === newMode));
+    zoomPill.style.display = isCompareLike ? '' : 'none';
+    if (newMode === 'solo') applySolo();
+    else if (newMode === 'compare') setCut(50);
+    if (isCompareLike){
+      requestAnimationFrame(() => {
+        measureViewer();
+        baseScale = computeBaseScale();
+        clampPan(); applyTransform();
+      });
+    }
+  }
+
+  /**
+   * Sidebar comporta-se diferente em desktop vs mobile:
+   *   desktop (>=901px): coluna à direita; "fechado" = collapsed
+   *                      (flex-basis 0). Usa flex layout.
+   *   mobile (<901px):   bottom sheet absoluto; "aberto" desliza
+   *                      pra cima via translateY(0).
+   * Esta função sincroniza as classes apropriadas com o estado.
+   */
+  function applySidebar(){
+    const isMobile = !window.matchMedia('(min-width: 901px)').matches;
+    if (isMobile){
+      sidebar.classList.toggle('open', sidebarOpen);
+      sidebar.classList.remove('collapsed');
+    } else {
+      sidebar.classList.toggle('collapsed', !sidebarOpen);
+      sidebar.classList.remove('open');
+    }
+    $('btnInfo').classList.toggle('active', sidebarOpen);
+  }
+  function toggleSidebar(){ sidebarOpen = !sidebarOpen; applySidebar(); }
+  /** Esconde topbar/strip/badges/etc. (toque simples no mobile pra UI clean). */
+  function toggleUI(){ uiHidden = !uiHidden; app.classList.toggle('ui-hidden', uiHidden); }
+
+  // Hint flutuante (mostra dica de gestos no primeiro carregamento mobile).
+  let hintTimer;
+  function showHint(text, ms){
+    hint.textContent = text;
+    hint.classList.add('show');
+    clearTimeout(hintTimer);
+    hintTimer = setTimeout(() => hint.classList.remove('show'), ms || 1800);
+  }
+
+  /** Entra/sai de fullscreen via Fullscreen API. */
+  function toggleFullscreen(){
+    if (!document.fullscreenElement) document.documentElement.requestFullscreen?.();
+    else document.exitFullscreen?.();
+  }
+
+  /* ============================================================
+     EVENTOS — pointer events, teclado, navegação, modo, etc.
+     ============================================================ */
+
+  /* ---------- Knob (manopla do slider) ----------
+     Eventos próprios pra que arrastar O knob nunca seja confundido
+     com pan/cut do viewer. A gente faz setPointerCapture pra que o
+     dragging continue mesmo se o cursor sair do knob.
+     dblclick no knob: volta o slider pra 50%. */
+  let knobDragging = false;
+  knob.addEventListener('pointerdown', e => {
+    e.preventDefault(); e.stopPropagation();
+    knobDragging = true;
+    try { knob.setPointerCapture(e.pointerId); } catch(_){}
+  });
+  knob.addEventListener('pointermove', e => {
+    if (knobDragging) setCut(pointerToCutPct(e.clientX));
+  });
+  const knobEnd = e => {
+    if (knobDragging){ try { knob.releasePointerCapture(e.pointerId); } catch(_){} }
+    knobDragging = false;
+  };
+  knob.addEventListener('pointerup', knobEnd);
+  knob.addEventListener('pointercancel', knobEnd);
+  knob.addEventListener('dblclick', e => {
+    // stopPropagation pra NÃO acionar o dblclick do viewer (que reseta zoom).
+    e.preventDefault(); e.stopPropagation(); setCut(50);
+  });
+
+  /* ---------- Viewer (compare): cut/pan/pinch ----------
+     Mantemos um Map<pointerId, {x,y}> com todos os ponteiros ativos.
+     Quando há 1 ponteiro: cut/pan/touch-pending/solo-flip.
+     Quando há 2 ponteiros: pinch.
+
+     dragMode possíveis:
+       'pan'           — arrastando com zoom > 1
+       'cut'           — arrastando o slider (mouse imediato; touch após mover)
+       'pinch'         — dois dedos
+       'touch-pending' — 1 dedo, ainda não decidi (cut, tap, ou flick)
+       'solo-flip'     — em modo solo, mouse pressionado → mostra outro lado
+       'solo-drag'     — em modo solo, dedo arrastando (vira flick possivelmente) */
+
+  const pointers = new Map();          // ponteiros ativos por pointerId
+  let dragMode = null, dragStart = null, pinchStart = null;
+  let lastTap = 0, tapTimer = null;     // detecção de double-tap (toque)
+
+  // pointerdown: classifica em qual modo de drag entramos.
+  compareView.addEventListener('pointerdown', e => {
+    // Cliques no knob são tratados pelos handlers próprios dele.
+    if (e.target === knob || knob.contains(e.target)) return;
+    pointers.set(e.pointerId, {x:e.clientX, y:e.clientY});
+    if (pointers.size === 1){
+      // Snapshot do estado no início pra usar como referência depois
+      // (evita acumular erro em pan, e identifica flick em pointerup).
+      dragStart = {x:e.clientX, y:e.clientY, cut, scale, panX, panY, t:Date.now(), type:e.pointerType};
+      if (scale > 1.001){
+        // Já há zoom: arrastar = pan.
+        dragMode = 'pan';
+        compareView.classList.add('panning');
+      } else if (mode === 'solo' && e.pointerType !== 'touch'){
+        // Mouse em modo solo: pressionar = flip A/B (espelha o Espaço).
+        dragMode = 'solo-flip';
+        mouseHeld = true; applySolo();
+      } else if (e.pointerType === 'touch'){
+        // Toque: ainda não sabemos se é tap, drag-cut ou flick.
+        // Decidiremos quando bater 8px de movimento (em pointermove)
+        // ou no pointerup (sem movimento = tap).
+        dragMode = 'touch-pending';
+      } else {
+        // Mouse/pen no modo compare: drag-to-cut imediato.
+        dragMode = 'cut';
+        compareView.classList.add('cut-dragging');
+        setCut(pointerToCutPct(e.clientX));
+      }
+      // setPointerCapture redireciona todos os eventos deste pointerId
+      // pro compareView, mesmo se o cursor sair do elemento.
+      try { compareView.setPointerCapture(e.pointerId); } catch(_){}
+    } else if (pointers.size === 2){
+      // Segundo dedo na tela: começa pinch. Guardamos a distância
+      // inicial e o ponto médio (cx,cy) — o zoom será relativo.
+      const pts = [...pointers.values()];
+      const dx = pts[0].x - pts[1].x, dy = pts[0].y - pts[1].y;
+      pinchStart = {dist: Math.hypot(dx, dy), scale, panX, panY,
+        cx:(pts[0].x+pts[1].x)/2, cy:(pts[0].y+pts[1].y)/2};
+      dragMode = 'pinch';
+      compareView.classList.remove('cut-dragging','panning');
+    }
+  });
+
+  // pointermove: aplica o efeito do dragMode atual.
+  compareView.addEventListener('pointermove', e => {
+    if (!pointers.has(e.pointerId)) return;
+    pointers.set(e.pointerId, {x:e.clientX, y:e.clientY});
+    if (dragMode === 'pinch' && pointers.size >= 2 && pinchStart){
+      // Pinch: ratio = distância atual / distância inicial.
+      // Usa setScaleAt com pinchStart como base pra ancoragem
+      // estável no centro do gesto.
+      const pts = [...pointers.values()];
+      const dx = pts[0].x - pts[1].x, dy = pts[0].y - pts[1].y;
+      setScaleAt(pinchStart.scale * (Math.hypot(dx,dy) / pinchStart.dist),
+                 pinchStart.cx, pinchStart.cy, pinchStart);
+    } else if (dragMode === 'pan'){
+      // Pan: delta absoluto desde o início (não acumula erro).
+      panX = dragStart.panX + (e.clientX - dragStart.x);
+      panY = dragStart.panY + (e.clientY - dragStart.y);
+      clampPan(); applyTransform();
+    } else if (dragMode === 'cut'){
+      setCut(pointerToCutPct(e.clientX));
+    } else if (dragMode === 'touch-pending' && dragStart){
+      // Threshold de 8px decide: cut/solo-drag ou continua aguardando.
+      const dx = e.clientX - dragStart.x, dy = e.clientY - dragStart.y;
+      if (Math.hypot(dx,dy) > 8){
+        if (mode === 'solo') dragMode = 'solo-drag';
+        else {
+          dragMode = 'cut';
+          compareView.classList.add('cut-dragging');
+          setCut(pointerToCutPct(e.clientX));
+        }
+      }
+    }
+  });
+
+  /**
+   * pointerup/cancel: encerra o gesto e aplica efeitos pós-drag
+   * (tap → toggle UI, double-tap → reset, flick → trocar foto).
+   */
+  function endPointer(e){
+    if (!pointers.has(e.pointerId)) return;
+    const wasMode = dragMode;
+    pointers.delete(e.pointerId);
+    if (wasMode === 'touch-pending' && dragStart){
+      // Liberou sem movimento → é um tap.
+      // Se vier OUTRO tap em < 320ms = double-tap → reset zoom.
+      // Senão, agenda toggleUI pra daqui a 320ms (cancela se vier 2º tap).
+      const now = Date.now(), dt = now - lastTap;
+      if (dt < 320){ reset(); lastTap = 0; clearTimeout(tapTimer); }
+      else { lastTap = now; clearTimeout(tapTimer);
+        tapTimer = setTimeout(() => toggleUI(), 320); }
+    } else if ((wasMode === 'cut' || wasMode === 'solo-drag') && dragStart && dragStart.type === 'touch'){
+      // Detecção de FLICK ao final de um drag de toque (sem zoom).
+      // Critérios: rápido (<320ms), longo (>70px), horizontal-dominante,
+      // velocidade > 0.5 px/ms. Atende → navega pro próximo/anterior.
+      const dx = e.clientX - dragStart.x, dy = e.clientY - dragStart.y;
+      const dt = Date.now() - dragStart.t, vel = Math.abs(dx) / Math.max(dt,1);
+      if (scale <= 1.001 && dt < 320 && Math.abs(dx) > 70
+          && Math.abs(dx) > Math.abs(dy) * 1.4 && vel > 0.5){
+        if (dx < 0) load(current + 1); else load(current - 1);
+      }
+    } else if (wasMode === 'solo-flip'){
+      // Solto o mouse → para de mostrar o flipped, volta ao soloSide.
+      mouseHeld = false; applySolo();
+    }
+    // Limpeza de estado quando todos os ponteiros saíram.
+    if (pointers.size === 0){
+      dragMode = null; pinchStart = null; dragStart = null;
+      compareView.classList.remove('panning','cut-dragging');
+    } else if (pointers.size < 2){
+      // Saiu um dedo da pinça → sai do modo pinch sem mexer no que sobrou.
+      pinchStart = null;
+      if (wasMode === 'pinch') dragMode = null;
+    }
+    try { compareView.releasePointerCapture(e.pointerId); } catch(_){}
+  }
+  compareView.addEventListener('pointerup', endPointer);
+  compareView.addEventListener('pointercancel', endPointer);
+
+  // Wheel = zoom. exp(-deltaY*0.0015) dá um fator multiplicativo
+  // suave (mais natural que linear). passive:false permite preventDefault.
+  compareView.addEventListener('wheel', e => {
+    e.preventDefault();
+    setScaleAt(scale * Math.exp(-e.deltaY * 0.0015), e.clientX, e.clientY);
+  }, {passive:false});
+
+  // Duplo clique no viewer (fora do knob) = reset zoom.
+  compareView.addEventListener('dblclick', e => {
+    if (e.target === knob || knob.contains(e.target)) return;
+    e.preventDefault(); reset();
+  });
+
+  /* ---------- Botões de navegação e zoom ---------- */
+  $('prevBtn').addEventListener('click', () => load(current - 1));
+  $('nextBtn').addEventListener('click', () => load(current + 1));
+  // Os zoom in/out usam o centro do viewer como âncora.
+  $('zoomIn').addEventListener('click', () => {
+    const r = compareView.getBoundingClientRect();
+    setScaleAt(scale * 1.4, r.left + r.width/2, r.top + r.height/2);
+  });
+  $('zoomOut').addEventListener('click', () => {
+    const r = compareView.getBoundingClientRect();
+    setScaleAt(scale / 1.4, r.left + r.width/2, r.top + r.height/2);
+  });
+  $('zoomReset').addEventListener('click', reset);
+
+  /* ---------- Botões de modo (Slider/Lado/Solo) ---------- */
+  document.querySelectorAll('.mode-btn').forEach(b =>
+    b.addEventListener('click', () => setMode(b.dataset.mode)));
+
+  /* ---------- Sidebar / Fullscreen / Help ---------- */
+  $('btnInfo').addEventListener('click', toggleSidebar);
+  $('sidebarClose').addEventListener('click', toggleSidebar);
+  $('btnFs').addEventListener('click', toggleFullscreen);
+  // Sincroniza o highlight do botão FS com o estado real (Esc do browser também sai).
+  document.addEventListener('fullscreenchange', () =>
+    $('btnFs').classList.toggle('active', !!document.fullscreenElement));
+
+  $('btnHelp').addEventListener('click', () => helpModal.hidden = false);
+  $('helpClose').addEventListener('click', () => helpModal.hidden = true);
+  // Fecha o modal ao clicar no fundo (mas não em cima do .modal-card).
+  helpModal.addEventListener('click', e => {
+    if (e.target === helpModal) helpModal.hidden = true;
+  });
+
+  /**
+   * Botão "recarregar lote": revoga os Object URLs (libera RAM) e
+   * recarrega a página, voltando à tela de upload. confirm() pra
+   * evitar perder os pares atuais por engano.
+   */
+  $('btnReload').addEventListener('click', () => {
+    if (confirm('Carregar outro lote de fotos? (as atuais serão descartadas)')){
+      DATA.forEach(it => {
+        if (it.b.src.startsWith('blob:')) URL.revokeObjectURL(it.b.src);
+        if (it.a.src.startsWith('blob:')) URL.revokeObjectURL(it.a.src);
+      });
+      location.reload();
+    }
+  });
+
+  /* ---------- Atalhos de teclado ---------- */
+  // Ordem de ciclagem ao apertar S.
+  const MODE_CYCLE = ['compare','side','solo'];
+
+  window.addEventListener('keydown', e => {
+    // Não interfere quando o usuário está digitando em algum input.
+    if (e.target.matches('input,textarea')) return;
+    // Tratamento especial pra Espaço:
+    //   - em modo solo: hold → aciona flip (espelha mouse-press).
+    //   - em outros modos: só preventDefault pra não rolar a página.
+    //   Nunca avança foto (foi um requisito explícito).
+    if (e.key === ' '){
+      if (mode === 'solo'){
+        e.preventDefault();
+        // !e.repeat: ignora os keydown repetidos quando seguramos.
+        if (!e.repeat && !spaceHeld){ spaceHeld = true; applySolo(); }
+      } else { e.preventDefault(); }
+      return;
+    }
+    switch(e.key){
+      case 'ArrowLeft': load(current - 1); break;
+      case 'ArrowRight': load(current + 1); break;
+      case '[': setCut(cut - 5); break;
+      case ']': setCut(cut + 5); break;
+      case '+': case '=': {
+        const r = compareView.getBoundingClientRect();
+        setScaleAt(scale * 1.3, r.left + r.width/2, r.top + r.height/2);
+      } break;
+      case '-': case '_': {
+        const r = compareView.getBoundingClientRect();
+        setScaleAt(scale / 1.3, r.left + r.width/2, r.top + r.height/2);
+      } break;
+      case '0': case 'Escape': {
+        // Se o modal de ajuda está aberto, Esc fecha ele em vez de resetar.
+        if (!helpModal.hidden){ helpModal.hidden = true; break; }
+        reset();
+      } break;
+      case 'f': case 'F': toggleFullscreen(); break;
+      case 'i': case 'I': toggleSidebar(); break;
+      case 's': case 'S': {
+        const idx = MODE_CYCLE.indexOf(mode);
+        setMode(MODE_CYCLE[(idx + 1) % MODE_CYCLE.length]);
+      } break;
+      case '?': helpModal.hidden = !helpModal.hidden; break;
+    }
+  });
+  // Solta Espaço → desativa flip (em solo mode).
+  window.addEventListener('keyup', e => {
+    if (e.key === ' ' && spaceHeld){
+      spaceHeld = false;
+      if (mode === 'solo') applySolo();
+    }
+  });
+
+  /* ---------- Resize: re-mede o viewer e re-fita ---------- */
+  // ResizeObserver dispara em mudança de tamanho do compareView
+  // (ex.: rotação do dispositivo, abrir/fechar sidebar, fullscreen).
+  const ro = new ResizeObserver(() => {
+    measureViewer(); baseScale = computeBaseScale();
+    clampPan(); applyTransform();
+  });
+  ro.observe(compareView);
+
+  /* ---------- Sidebar mobile: arrastar pra baixo pra fechar ---------- */
+  // Só ativa em mobile (<901px) e só quando a sidebar está scrolled-to-top
+  // (pra não roubar gestos de scroll do conteúdo interno).
+  let sheetDrag = null;
+  sidebar.addEventListener('pointerdown', e => {
+    if (window.matchMedia('(min-width: 901px)').matches) return;
+    if (sidebar.scrollTop > 2) return;
+    sheetDrag = {y:e.clientY};
+  });
+  sidebar.addEventListener('pointermove', e => {
+    if (!sheetDrag) return;
+    const dy = e.clientY - sheetDrag.y;
+    if (dy > 0){
+      // Acompanha o dedo só pra baixo (não permite "puxar pra cima").
+      sidebar.style.transition = 'none';
+      sidebar.style.transform = `translateY(${dy}px)`;
+    }
+  });
+  const endSheet = e => {
+    if (!sheetDrag) return;
+    // Limpa overrides pra deixar a transition CSS retomar.
+    sidebar.style.transition = ''; sidebar.style.transform = '';
+    // Threshold: arrastou mais de 90px → fecha.
+    if (e && (e.clientY - sheetDrag.y) > 90){ sidebarOpen = false; applySidebar(); }
+    sheetDrag = null;
+  };
+  sidebar.addEventListener('pointerup', endSheet);
+  sidebar.addEventListener('pointercancel', endSheet);
+
+  // Re-aplica o layout da sidebar quando a janela muda
+  // (ex.: rotação faz cruzar o breakpoint 901px).
+  window.addEventListener('resize', applySidebar);
+
+  // Bloqueia o menu de contexto nas imagens — evita "Salvar como"
+  // acidental e long-press quirks no mobile.
+  [imgA, imgB, sideImgA, sideImgB].forEach(el =>
+    el.addEventListener('contextmenu', e => e.preventDefault()));
+
+  /* ---------- Boot ---------- */
+  applySidebar();
+  load(0);
+  // Hint inicial só no mobile, pra ensinar os gestos.
+  if (isTouchDevice) showHint('Deslize ⇆ para trocar · Pinça para zoom', 2800);
+}
+
+})();
+</script>
+</body>
+</html>
