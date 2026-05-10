@@ -335,6 +335,11 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
 .icon-btn svg{width:16px;height:16px}
 .icon-btn:hover{background:var(--bg-2);color:var(--fg);border-color:var(--line)}
 .icon-btn.active{background:var(--bg-3);color:var(--accent);border-color:var(--line)}
+/* Botão de idioma — em vez de SVG, mostra "PT" ou "EN" como label.
+   Largura um pouco menor que os outros pra caber no espaço apertado
+   e font-size em monospace pra alinhar bem 2 letras. */
+.lang-btn{font-size:11px;font-weight:700;letter-spacing:.5px;
+  font-family:ui-monospace,Consolas,monospace;width:38px}
 
 /* ==========================================================================
    MENU DROPDOWN (usado pelo botão de exportação)
@@ -647,6 +652,9 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
   padding:5px 0;font-size:12.5px}
 .info-row .ik{color:var(--fg-3);flex-shrink:0;font-weight:500}
 .info-row .iv{color:var(--fg);text-align:right;word-break:break-all;min-width:0}
+/* Estado "consultando..." enquanto o reverse-geocoding está em
+   vôo. Discreto (mesma cor do label, sem o destaque do valor real). */
+.info-row .iv.iv-pending{color:var(--fg-3);font-style:italic}
 
 /* ==========================================================================
    THUMBSTRIP (faixa de miniaturas)
@@ -720,6 +728,27 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
 /* Coluna ímpar = teclas (.kbd). Múltiplas teclas envolvendo wrap. */
 .kb-grid > div:nth-child(odd){display:flex;gap:4px;flex-wrap:wrap}
 .kb-grid > div:nth-child(even){color:var(--fg-2)}
+
+/* ==========================================================================
+   CONFIRM MODAL — diálogo custom seguindo o tema dark do app
+   (substitui window.confirm() pra evitar a UI feia do navegador).
+   ========================================================================== */
+.confirm-card{max-width:420px}
+.confirm-title{margin:0 0 8px;font-size:16px;font-weight:600}
+.confirm-msg{margin:0 0 22px;color:var(--fg-2);line-height:1.5;font-size:13.5px}
+.confirm-actions{display:flex;gap:8px;justify-content:flex-end}
+.btn{padding:8px 16px;border-radius:8px;font-size:13px;font-family:inherit;
+  cursor:pointer;font-weight:500;transition:background var(--t-fast),color var(--t-fast),border-color var(--t-fast);
+  border:1px solid var(--line)}
+.btn-ghost{background:transparent;color:var(--fg-2)}
+.btn-ghost:hover{background:var(--bg-2);color:var(--fg);border-color:var(--bg-3)}
+.btn-primary{background:linear-gradient(180deg,#ffbe55,#ff9a18);color:#15161b;
+  border-color:transparent;font-weight:600;
+  box-shadow:0 2px 10px rgba(255,154,24,.2),0 1px 0 rgba(255,255,255,.4) inset}
+.btn-primary:hover{box-shadow:0 4px 14px rgba(255,154,24,.3),0 1px 0 rgba(255,255,255,.4) inset}
+.btn-primary.danger{background:linear-gradient(180deg,#e85a52,#c93630);color:#fff;
+  box-shadow:0 2px 10px rgba(201,54,48,.25),0 1px 0 rgba(255,255,255,.15) inset}
+.btn-primary.danger:hover{box-shadow:0 4px 14px rgba(201,54,48,.35),0 1px 0 rgba(255,255,255,.15) inset}
 
 /* ==========================================================================
    HINT (toast flutuante)
@@ -866,7 +895,7 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
          o usuário envia o LOTE INTEIRO (originais + versões editadas
          juntos) e o programa cuida de identificar os pares
          automaticamente pelos nomes. -->
-    <p>Envie o conjunto de fotos — originais e versões editadas, todas juntas. Os pares são identificados automaticamente pelo nome dos arquivos.</p>
+    <p data-i18n="upload.instruction">Envie o conjunto de fotos — originais e versões editadas, todas juntas. Os pares são identificados automaticamente pelo nome dos arquivos.</p>
 
     <!-- BOTÃO DE UPLOAD:
          Truque clássico: o <input type="file"> fica escondido com
@@ -878,7 +907,7 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
     <label class="upload-btn">
       <!-- Ícone de upload: nuvem-com-seta inline-SVG (zero kb extra). -->
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-      Selecionar fotos
+      <span data-i18n="upload.button">Selecionar fotos</span>
       <input type="file" id="fileInput" multiple accept="image/*" style="display:none">
     </label>
 
@@ -891,7 +920,7 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
          fotos pessoais. -->
     <div class="upload-priv">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-      Processado 100% no seu navegador. Nada é enviado a nenhum servidor — tudo é descartado quando você fechar a aba.
+      <span data-i18n="upload.privacy">Processado 100% no seu navegador. Nada é enviado a nenhum servidor — tudo é descartado quando você fechar a aba.</span>
     </div>
   </div>
 </div>
@@ -952,23 +981,23 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
     quando clicado (evita switch/case por id).
     title="..." aparece como tooltip no hover.
   -->
-  <nav class="modes" role="tablist" aria-label="Modo de visualização">
+  <nav class="modes" role="tablist" data-i18n-aria="topbar.modesNav" aria-label="Modo de visualização">
     <!-- Modo SLIDER: alça arrastável dividindo as duas imagens.
          Ícone: linha vertical com setas pra esquerda/direita. -->
-    <button class="mode-btn active" data-mode="compare" title="Slider (S)">
+    <button class="mode-btn active" data-mode="compare" data-i18n-title="mode.slider.title" title="Slider (S)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18"/><path d="M5 8 2 12l3 4"/><path d="M19 8l3 4-3 4"/></svg>
-      <span>Slider</span>
+      <span data-i18n="mode.slider">Slider</span>
     </button>
     <!-- Modo LADO A LADO: dois retângulos paralelos. -->
-    <button class="mode-btn" data-mode="side" title="Lado a Lado (S)">
+    <button class="mode-btn" data-mode="side" data-i18n-title="mode.side.title" title="Lado a Lado (S)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="8" height="16" rx="1"/><rect x="13" y="4" width="8" height="16" rx="1"/></svg>
-      <span>Lado a Lado</span>
+      <span data-i18n="mode.side">Lado a Lado</span>
     </button>
     <!-- Modo SOLO: ícone de olho. Comporta-se como "preview" — uma
          imagem por vez, com flip via Espaço/clique-segurando. -->
-    <button class="mode-btn" data-mode="solo" title="Solo — segure Espaço para alternar (S)">
+    <button class="mode-btn" data-mode="solo" data-i18n-title="mode.solo.title" title="Solo — segure Espaço para alternar (S)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
-      <span>Solo</span>
+      <span data-i18n="mode.solo">Solo</span>
     </button>
   </nav>
 
@@ -976,14 +1005,21 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
        de fonte (zero requests, zero FOIT). aria-label complementa
        title pra acessibilidade quando o ícone não tem texto. -->
   <div class="actions">
+    <!-- Toggle de idioma. O texto interno ("PT" ou "EN") é atualizado
+         em JS conforme o idioma ativo. Clique cicla entre PT-BR e EN-US
+         e persiste a escolha em localStorage. -->
+    <button class="icon-btn lang-btn" id="btnLang" title="Idioma / Language" aria-label="Idioma">
+      <span id="langLabel">PT</span>
+    </button>
     <!-- Recarregar lote: descarta os atuais (revoga Object URLs) e
          volta pra tela de upload. -->
-    <button class="icon-btn" id="btnReload" title="Carregar outras fotos" aria-label="Recarregar">
+    <button class="icon-btn" id="btnReload" title="Carregar outras fotos" aria-label="Recarregar"
+      data-i18n-title="ui.reload" data-i18n-aria="ui.reload">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><polyline points="21 3 21 8 16 8"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><polyline points="3 21 3 16 8 16"/></svg>
     </button>
     <!-- Exportar: gera um HTML standalone com as fotos embutidas
          (galeria offline completa OU só o par atual pra compartilhar). -->
-    <button class="icon-btn" id="btnExport" title="Exportar HTML" aria-label="Exportar" aria-haspopup="menu" aria-expanded="false">
+    <button class="icon-btn" id="btnExport" data-i18n-title="ui.export" data-i18n-aria="ui.export" title="Exportar HTML" aria-label="Exportar" aria-haspopup="menu" aria-expanded="false">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
     </button>
     <!-- Menu dropdown da exportação (anchored ao botão acima).
@@ -992,28 +1028,28 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
       <button id="exportAll" role="menuitem">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
         <span>
-          <span class="item-title">Galeria offline (todas)</span>
-          <span class="item-sub">HTML único com todos os pares carregados</span>
+          <span class="item-title" data-i18n="export.all.title">Galeria offline (todas)</span>
+          <span class="item-sub" data-i18n="export.all.sub">HTML único com todos os pares carregados</span>
         </span>
       </button>
       <button id="exportOne" role="menuitem">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.5-3.5L9 20"/></svg>
         <span>
-          <span class="item-title">Comparador desta foto</span>
-          <span class="item-sub">HTML pequeno do par atual (pra compartilhar)</span>
+          <span class="item-title" data-i18n="export.one.title">Comparador desta foto</span>
+          <span class="item-sub" data-i18n="export.one.sub">HTML pequeno do par atual (pra compartilhar)</span>
         </span>
       </button>
     </div>
     <!-- Toggle do painel de informações (sidebar/bottom-sheet). -->
-    <button class="icon-btn" id="btnInfo" title="Informações (I)" aria-label="Informações">
+    <button class="icon-btn" id="btnInfo" data-i18n-title="ui.info" data-i18n-aria="ui.info" title="Informações (I)" aria-label="Informações">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
     </button>
     <!-- Tela cheia (Fullscreen API). -->
-    <button class="icon-btn" id="btnFs" title="Tela cheia (F)" aria-label="Tela cheia">
+    <button class="icon-btn" id="btnFs" data-i18n-title="ui.fullscreen" data-i18n-aria="ui.fullscreen" title="Tela cheia (F)" aria-label="Tela cheia">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
     </button>
     <!-- Modal de ajuda com a tabela completa de atalhos/gestos. -->
-    <button class="icon-btn" id="btnHelp" title="Ajuda (?)" aria-label="Ajuda">
+    <button class="icon-btn" id="btnHelp" data-i18n-title="ui.help" data-i18n-aria="ui.help" title="Ajuda (?)" aria-label="Ajuda">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
     </button>
   </div>
@@ -1050,17 +1086,17 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
       <!-- Camada do "depois": em cima, clipada por --cut. -->
       <div class="layer layer-after"><img id="imgA" alt=""></div>
       <!-- Badges fixos nos cantos superiores (modo compare). -->
-      <div class="badge badge-before">Antes</div>
-      <div class="badge badge-after">Depois</div>
+      <div class="badge badge-before" data-i18n="badge.before">Antes</div>
+      <div class="badge badge-after" data-i18n="badge.after">Depois</div>
       <!-- Badge único do modo solo (centralizado, alterna A/B label).
            Os dois <span> são exibidos alternadamente via CSS
            dependendo da classe .is-before. -->
-      <div class="solo-badge" id="soloBadge"><span class="label-after">Depois</span><span class="label-before">Antes</span></div>
+      <div class="solo-badge" id="soloBadge"><span class="label-after" data-i18n="badge.after">Depois</span><span class="label-before" data-i18n="badge.before">Antes</span></div>
       <!-- Alça do slider: linha vertical + knob arrastável.
            position via CSS variable (left:var(--cut)) atualizada em JS. -->
       <div class="handle" id="handle">
         <div class="handle-line"></div>
-        <div class="knob" id="knob" aria-label="Mover slider">
+        <div class="knob" id="knob" data-i18n-aria="handle.move" aria-label="Mover slider">
           <!-- Ícone de "expandir horizontal" — 2 setas apontando pra
                fora simbolizando que o knob se move pra os dois lados. -->
           <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8.5 5.5 3 12l5.5 6.5V14h7v4.5L21 12l-5.5-6.5V10h-7V5.5z"/></svg>
@@ -1080,12 +1116,12 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
     <div class="view side-view" id="sideView">
       <div class="side-half side-before">
         <div class="side-img-wrap"><img id="sideImgB" alt=""></div>
-        <div class="badge badge-before">Antes</div>
+        <div class="badge badge-before" data-i18n="badge.before">Antes</div>
       </div>
       <div class="side-divider"></div>
       <div class="side-half side-after">
         <div class="side-img-wrap"><img id="sideImgA" alt=""></div>
-        <div class="badge badge-after">Depois</div>
+        <div class="badge badge-after" data-i18n="badge.after">Depois</div>
       </div>
     </div>
 
@@ -1094,10 +1130,10 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
       sobre a stage, centralizados verticalmente. SVGs polyline
       desenhando "<" e ">".
     -->
-    <button class="navbtn navprev" id="prevBtn" aria-label="Anterior">
+    <button class="navbtn navprev" id="prevBtn" data-i18n-aria="nav.prev" aria-label="Anterior">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
     </button>
-    <button class="navbtn navnext" id="nextBtn" aria-label="Próxima">
+    <button class="navbtn navnext" id="nextBtn" data-i18n-aria="nav.next" aria-label="Próxima">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
     </button>
 
@@ -1111,10 +1147,10 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
       <div class="zoom-pill" id="zoomPill">
         <!-- Caractere "−" (U+2212 Minus Sign), não "-" hyphen — visual
              mais largo e centralizado, casa melhor com "+". -->
-        <button id="zoomOut" aria-label="Zoom out">−</button>
+        <button id="zoomOut" data-i18n-aria="zoom.out" aria-label="Zoom out">−</button>
         <span id="zoomLabel">100%</span>
-        <button id="zoomIn" aria-label="Zoom in">+</button>
-        <button id="zoomReset" aria-label="Resetar" title="Resetar (0)">
+        <button id="zoomIn" data-i18n-aria="zoom.in" aria-label="Zoom in">+</button>
+        <button id="zoomReset" data-i18n-aria="zoom.reset" data-i18n-title="zoom.reset" aria-label="Resetar" title="Resetar (0)">
           <!-- Ícone de seta circular = "reset/refresh". -->
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
         </button>
@@ -1142,24 +1178,24 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
         <!-- Título: nome do arquivo "antes". Atualizado em JS por load(). -->
         <h2 id="pairTitle">—</h2>
         <!-- X de fechar (visível só em mobile). -->
-        <button class="side-close" id="sidebarClose" aria-label="Fechar painel">×</button>
+        <button class="side-close" id="sidebarClose" data-i18n-aria="sidebar.close" aria-label="Fechar painel">×</button>
       </div>
       <!-- Subtítulo: "ID 0093". Cor de accent no <span> pra destaque. -->
-      <div class="side-id">ID <span id="pairId">—</span></div>
+      <div class="side-id"><span data-i18n="info.id">ID</span> <span id="pairId">—</span></div>
 
       <!-- Bloco "Antes": nome, dimensões, tamanho. Bolinha azul. -->
       <div class="info-block">
-        <div class="info-label"><span class="info-dot before"></span>Antes</div>
-        <div class="info-row"><span class="ik">Arquivo</span><span class="iv mono" id="iB-name">—</span></div>
-        <div class="info-row"><span class="ik">Dimensões</span><span class="iv mono" id="iB-dim">—</span></div>
-        <div class="info-row"><span class="ik">Tamanho</span><span class="iv mono" id="iB-size">—</span></div>
+        <div class="info-label"><span class="info-dot before"></span><span data-i18n="badge.before">Antes</span></div>
+        <div class="info-row"><span class="ik" data-i18n="info.file">Arquivo</span><span class="iv mono" id="iB-name">—</span></div>
+        <div class="info-row"><span class="ik" data-i18n="info.dim">Dimensões</span><span class="iv mono" id="iB-dim">—</span></div>
+        <div class="info-row"><span class="ik" data-i18n="info.size">Tamanho</span><span class="iv mono" id="iB-size">—</span></div>
       </div>
       <!-- Bloco "Depois": idem, bolinha laranja. -->
       <div class="info-block">
-        <div class="info-label"><span class="info-dot after"></span>Depois</div>
-        <div class="info-row"><span class="ik">Arquivo</span><span class="iv mono" id="iA-name">—</span></div>
-        <div class="info-row"><span class="ik">Dimensões</span><span class="iv mono" id="iA-dim">—</span></div>
-        <div class="info-row"><span class="ik">Tamanho</span><span class="iv mono" id="iA-size">—</span></div>
+        <div class="info-label"><span class="info-dot after"></span><span data-i18n="badge.after">Depois</span></div>
+        <div class="info-row"><span class="ik" data-i18n="info.file">Arquivo</span><span class="iv mono" id="iA-name">—</span></div>
+        <div class="info-row"><span class="ik" data-i18n="info.dim">Dimensões</span><span class="iv mono" id="iA-dim">—</span></div>
+        <div class="info-row"><span class="ik" data-i18n="info.size">Tamanho</span><span class="iv mono" id="iA-size">—</span></div>
       </div>
       <!--
         Bloco EXIF "Captura": dados de quando/como a foto foi tirada.
@@ -1167,16 +1203,21 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
         objeto exif do par. JS esconde linhas sem valor (display:none)
         e esconde o bloco inteiro se NENHUMA linha tem valor —
         evita seção vazia em PNG/WebP (que não têm EXIF).
+        Linhas adicionadas: author (EXIF Artist tag) e location
+        (geocoding reverso a partir de coords GPS, quando disponíveis).
       -->
       <div class="info-block exif" id="exifBlock">
-        <div class="info-label">Captura</div>
-        <div class="info-row" data-k="date"><span class="ik">Data</span><span class="iv mono">—</span></div>
-        <div class="info-row" data-k="camera"><span class="ik">Câmera</span><span class="iv">—</span></div>
-        <div class="info-row" data-k="lens"><span class="ik">Lente</span><span class="iv">—</span></div>
+        <div class="info-label" data-i18n="info.capture">Captura</div>
+        <div class="info-row" data-k="date"><span class="ik" data-i18n="info.date">Data</span><span class="iv mono">—</span></div>
+        <div class="info-row" data-k="author"><span class="ik" data-i18n="info.author">Autor</span><span class="iv">—</span></div>
+        <div class="info-row" data-k="camera"><span class="ik" data-i18n="info.camera">Câmera</span><span class="iv">—</span></div>
+        <div class="info-row" data-k="lens"><span class="ik" data-i18n="info.lens">Lente</span><span class="iv">—</span></div>
         <div class="info-row" data-k="iso"><span class="ik">ISO</span><span class="iv mono">—</span></div>
-        <div class="info-row" data-k="aperture"><span class="ik">Abertura</span><span class="iv mono">—</span></div>
-        <div class="info-row" data-k="shutter"><span class="ik">Obturador</span><span class="iv mono">—</span></div>
-        <div class="info-row" data-k="focal"><span class="ik">Focal</span><span class="iv mono">—</span></div>
+        <div class="info-row" data-k="aperture"><span class="ik" data-i18n="info.aperture">Abertura</span><span class="iv mono">—</span></div>
+        <div class="info-row" data-k="shutter"><span class="ik" data-i18n="info.shutter">Obturador</span><span class="iv mono">—</span></div>
+        <div class="info-row" data-k="focal"><span class="ik" data-i18n="info.focal">Focal</span><span class="iv mono">—</span></div>
+        <div class="info-row" data-k="location"><span class="ik" data-i18n="info.location">Localização</span><span class="iv">—</span></div>
+        <div class="info-row" data-k="coords"><span class="ik" data-i18n="info.coords">Coordenadas</span><span class="iv mono">—</span></div>
       </div>
     </div>
   </aside>
@@ -1210,42 +1251,58 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
 
   hidden inicial = começa fechado.
 -->
+<!--
+  =================== CONFIRM MODAL ===================
+  Diálogo custom (substitui window.confirm — visual integrado ao tema).
+  JS preenche título/mensagem/labels e resolve uma Promise<bool>.
+-->
+<div class="modal" id="confirmModal" hidden>
+  <div class="modal-card confirm-card">
+    <h3 class="confirm-title" id="confirmTitle">—</h3>
+    <p class="confirm-msg" id="confirmMsg">—</p>
+    <div class="confirm-actions">
+      <button class="btn btn-ghost" id="confirmNo" data-i18n="ui.cancel">Cancelar</button>
+      <button class="btn btn-primary" id="confirmYes" data-i18n="ui.confirm">Confirmar</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal" id="helpModal" hidden>
   <div class="modal-card">
-    <button class="modal-close" id="helpClose" aria-label="Fechar">×</button>
-    <h3>Atalhos & Gestos</h3>
+    <button class="modal-close" id="helpClose" data-i18n-aria="ui.close" aria-label="Fechar">×</button>
+    <h3 data-i18n="help.title">Atalhos & Gestos</h3>
 
     <!-- Seção 1: TECLADO -->
-    <div class="kb-section">Teclado</div>
+    <div class="kb-section" data-i18n="help.keyboard">Teclado</div>
     <div class="kb-grid">
-      <div><kbd>←</kbd><kbd>→</kbd></div><div>Navegar entre fotos</div>
-      <div><kbd>Espaço</kbd></div><div>(Modo Solo) Segurar para alternar Antes/Depois</div>
-      <div><kbd>[</kbd><kbd>]</kbd></div><div>Mover slider 5%</div>
-      <div><kbd>+</kbd><kbd>−</kbd></div><div>Zoom in / out</div>
-      <div><kbd>0</kbd> ou <kbd>Esc</kbd></div><div>Resetar zoom</div>
-      <div><kbd>F</kbd></div><div>Tela cheia</div>
-      <div><kbd>I</kbd></div><div>Painel de informações</div>
-      <div><kbd>S</kbd></div><div>Trocar de modo</div>
-      <div><kbd>?</kbd></div><div>Esta ajuda</div>
+      <div><kbd>←</kbd><kbd>→</kbd></div><div data-i18n="help.kb.nav">Navegar entre fotos</div>
+      <div><kbd data-i18n="help.kb.space">Espaço</kbd></div><div data-i18n="help.kb.spaceDesc">(Modo Solo) Segurar para alternar Antes/Depois</div>
+      <div><kbd>[</kbd><kbd>]</kbd></div><div data-i18n="help.kb.slider">Mover slider 5%</div>
+      <div><kbd>+</kbd><kbd>−</kbd></div><div data-i18n="help.kb.zoom">Zoom in / out</div>
+      <div><kbd>0</kbd> <span data-i18n="help.or">ou</span> <kbd>Esc</kbd></div><div data-i18n="help.kb.reset">Resetar zoom</div>
+      <div><kbd>F</kbd></div><div data-i18n="help.kb.fs">Tela cheia</div>
+      <div><kbd>I</kbd></div><div data-i18n="help.kb.info">Painel de informações</div>
+      <div><kbd>S</kbd></div><div data-i18n="help.kb.mode">Trocar de modo</div>
+      <div><kbd>?</kbd></div><div data-i18n="help.kb.help">Esta ajuda</div>
     </div>
 
     <!-- Seção 2: MOUSE -->
-    <div class="kb-section">Mouse</div>
+    <div class="kb-section" data-i18n="help.mouse">Mouse</div>
     <div class="kb-grid">
-      <div>Roda</div><div>Zoom (ancorado ao cursor)</div>
-      <div>Arrastar</div><div>Mover slider · Pan quando há zoom</div>
-      <div>Pressionar (Solo)</div><div>Segurar para alternar Antes/Depois</div>
-      <div>Duplo clique no knob</div><div>Slider volta ao centro (50%)</div>
-      <div>Duplo clique</div><div>Resetar zoom</div>
+      <div data-i18n="help.m.wheel">Roda</div><div data-i18n="help.m.wheelDesc">Zoom (ancorado ao cursor)</div>
+      <div data-i18n="help.m.drag">Arrastar</div><div data-i18n="help.m.dragDesc">Mover slider · Pan quando há zoom</div>
+      <div data-i18n="help.m.press">Pressionar (Solo)</div><div data-i18n="help.m.pressDesc">Segurar para alternar Antes/Depois</div>
+      <div data-i18n="help.m.dblKnob">Duplo clique no knob</div><div data-i18n="help.m.dblKnobDesc">Slider volta ao centro (50%)</div>
+      <div data-i18n="help.m.dbl">Duplo clique</div><div data-i18n="help.m.dblDesc">Resetar zoom</div>
     </div>
 
     <!-- Seção 3: TOQUE (mobile/tablet) -->
-    <div class="kb-section">Toque</div>
+    <div class="kb-section" data-i18n="help.touch">Toque</div>
     <div class="kb-grid">
-      <div>Pinça</div><div>Zoom</div>
-      <div>Arrasto horizontal</div><div>Mover slider · flick rápido troca foto</div>
-      <div>Toque duplo</div><div>Resetar zoom</div>
-      <div>Toque simples</div><div>Mostrar/ocultar interface</div>
+      <div data-i18n="help.t.pinch">Pinça</div><div data-i18n="help.t.pinchDesc">Zoom</div>
+      <div data-i18n="help.t.drag">Arrasto horizontal</div><div data-i18n="help.t.dragDesc">Mover slider · flick rápido troca foto</div>
+      <div data-i18n="help.t.dbl">Toque duplo</div><div data-i18n="help.t.dblDesc">Resetar zoom</div>
+      <div data-i18n="help.t.tap">Toque simples</div><div data-i18n="help.t.tapDesc">Mostrar/ocultar interface</div>
     </div>
   </div>
 </div>
@@ -1292,6 +1349,274 @@ const fileInput = document.getElementById('fileInput');
 const loadingScreen = document.getElementById('loadingScreen');
 const loadingText = document.getElementById('loadingText');
 const loadingFill = document.getElementById('loadingFill');
+
+/* ============================================================================
+   I18N — internacionalização (PT-BR / EN-US)
+
+   Estratégia data-attribute:
+     - Cada elemento traduzível tem `data-i18n="key"`.
+     - Atributos (title, aria-label) usam `data-i18n-title` / `data-i18n-aria`.
+     - applyI18n() varre o DOM e aplica os textos do dicionário ativo.
+
+   Strings dinâmicas (geradas em runtime — erros, progresso) usam t(key)
+   inline. Suporta substituição: t('load.processing', {i:3, n:21}).
+
+   Detecção do idioma inicial:
+     1. localStorage 'lang' (preferência salva)
+     2. navigator.language (idioma do navegador, prefixo 'pt' → pt-BR)
+     3. fallback: 'en-US'
+
+   Persistência: setLang() salva em localStorage, então a escolha
+   sobrevive a reloads. Funciona dentro do mesmo origin (file:// pode
+   ter limitações em alguns browsers, mas geralmente OK).
+   ========================================================================== */
+const I18N = {
+  'pt-BR': {
+    'upload.instruction': 'Envie o conjunto de fotos — originais e versões editadas, todas juntas. Os pares são identificados automaticamente pelo nome dos arquivos.',
+    'upload.button': 'Selecionar fotos',
+    'upload.privacy': 'Processado 100% no seu navegador. Nada é enviado a nenhum servidor — tudo é descartado quando você fechar a aba.',
+    'ui.cancel': 'Cancelar', 'ui.confirm': 'Confirmar', 'ui.close': 'Fechar',
+    'ui.export': 'Exportar HTML', 'ui.info': 'Informações (I)',
+    'ui.fullscreen': 'Tela cheia (F)', 'ui.help': 'Ajuda (?)',
+    'ui.reload': 'Carregar outras fotos',
+    'topbar.modesNav': 'Modo de visualização',
+    'mode.slider': 'Slider', 'mode.side': 'Lado a Lado', 'mode.solo': 'Solo',
+    'mode.slider.title': 'Slider (S)', 'mode.side.title': 'Lado a Lado (S)',
+    'mode.solo.title': 'Solo — segure Espaço para alternar (S)',
+    'export.all.title': 'Galeria offline (todas)',
+    'export.all.sub': 'HTML único com todos os pares carregados',
+    'export.one.title': 'Comparador desta foto',
+    'export.one.sub': 'HTML pequeno do par atual (pra compartilhar)',
+    'badge.before': 'Antes', 'badge.after': 'Depois',
+    'handle.move': 'Mover slider', 'sidebar.close': 'Fechar painel',
+    'nav.prev': 'Anterior', 'nav.next': 'Próxima',
+    'zoom.in': 'Zoom in', 'zoom.out': 'Zoom out', 'zoom.reset': 'Resetar (0)',
+    'info.id': 'ID', 'info.file': 'Arquivo', 'info.dim': 'Dimensões',
+    'info.size': 'Tamanho', 'info.capture': 'Captura', 'info.date': 'Data',
+    'info.author': 'Autor', 'info.camera': 'Câmera', 'info.lens': 'Lente',
+    'info.aperture': 'Abertura', 'info.shutter': 'Obturador', 'info.focal': 'Focal',
+    'info.location': 'Localização', 'info.coords': 'Coordenadas',
+    'help.title': 'Atalhos & Gestos', 'help.keyboard': 'Teclado',
+    'help.mouse': 'Mouse', 'help.touch': 'Toque', 'help.or': 'ou',
+    'help.kb.nav': 'Navegar entre fotos', 'help.kb.space': 'Espaço',
+    'help.kb.spaceDesc': '(Modo Solo) Segurar para alternar Antes/Depois',
+    'help.kb.slider': 'Mover slider 5%', 'help.kb.zoom': 'Zoom in / out',
+    'help.kb.reset': 'Resetar zoom', 'help.kb.fs': 'Tela cheia',
+    'help.kb.info': 'Painel de informações', 'help.kb.mode': 'Trocar de modo',
+    'help.kb.help': 'Esta ajuda',
+    'help.m.wheel': 'Roda', 'help.m.wheelDesc': 'Zoom (ancorado ao cursor)',
+    'help.m.drag': 'Arrastar', 'help.m.dragDesc': 'Mover slider · Pan quando há zoom',
+    'help.m.press': 'Pressionar (Solo)', 'help.m.pressDesc': 'Segurar para alternar Antes/Depois',
+    'help.m.dblKnob': 'Duplo clique no knob',
+    'help.m.dblKnobDesc': 'Slider volta ao centro (50%)',
+    'help.m.dbl': 'Duplo clique', 'help.m.dblDesc': 'Resetar zoom',
+    'help.t.pinch': 'Pinça', 'help.t.pinchDesc': 'Zoom',
+    'help.t.drag': 'Arrasto horizontal',
+    'help.t.dragDesc': 'Mover slider · flick rápido troca foto',
+    'help.t.dbl': 'Toque duplo', 'help.t.dblDesc': 'Resetar zoom',
+    'help.t.tap': 'Toque simples', 'help.t.tapDesc': 'Mostrar/ocultar interface',
+    'err.fewFiles': 'Selecione pelo menos 2 imagens.',
+    'err.noPairs': 'Nenhum par detectado. Verifique se os nomes dos arquivos seguem padrões de câmera (IMG_NNNN, DSC_NNNNN, etc.) e que originais + versões editadas estão presentes.',
+    'err.loadFail': 'Não consegui carregar nenhuma das imagens.',
+    'err.exportFail': 'Falha ao exportar',
+    'load.reading': 'Lendo {n} pares…',
+    'load.processing': 'Processando {i}/{n}: {id}',
+    'load.preparing': 'Preparando exportação…',
+    'load.generating': 'Gerando HTML…',
+    'hint.gestures': 'Deslize ⇆ para trocar · Pinça para zoom',
+    'confirm.reload.title': 'Carregar outras fotos?',
+    'confirm.reload.msg': 'As fotos atuais serão descartadas. Você pode reenviá-las depois.',
+    'confirm.reload.yes': 'Descartar e recarregar',
+    'geo.resolving': 'consultando…',
+    'geo.attribution': 'via OpenStreetMap',
+  },
+  'en-US': {
+    'upload.instruction': 'Upload your set of photos — originals and edited versions, all together. Pairs are identified automatically from filenames.',
+    'upload.button': 'Select photos',
+    'upload.privacy': 'Processed 100% in your browser. Nothing is sent to any server — everything is discarded when you close the tab.',
+    'ui.cancel': 'Cancel', 'ui.confirm': 'Confirm', 'ui.close': 'Close',
+    'ui.export': 'Export HTML', 'ui.info': 'Info (I)',
+    'ui.fullscreen': 'Fullscreen (F)', 'ui.help': 'Help (?)',
+    'ui.reload': 'Load other photos',
+    'topbar.modesNav': 'View mode',
+    'mode.slider': 'Slider', 'mode.side': 'Side by Side', 'mode.solo': 'Solo',
+    'mode.slider.title': 'Slider (S)', 'mode.side.title': 'Side by Side (S)',
+    'mode.solo.title': 'Solo — hold Space to flip (S)',
+    'export.all.title': 'Offline gallery (all)',
+    'export.all.sub': 'Single HTML with all loaded pairs',
+    'export.one.title': "This photo's comparator",
+    'export.one.sub': 'Small HTML of current pair (to share)',
+    'badge.before': 'Before', 'badge.after': 'After',
+    'handle.move': 'Move slider', 'sidebar.close': 'Close panel',
+    'nav.prev': 'Previous', 'nav.next': 'Next',
+    'zoom.in': 'Zoom in', 'zoom.out': 'Zoom out', 'zoom.reset': 'Reset (0)',
+    'info.id': 'ID', 'info.file': 'File', 'info.dim': 'Dimensions',
+    'info.size': 'Size', 'info.capture': 'Capture', 'info.date': 'Date',
+    'info.author': 'Author', 'info.camera': 'Camera', 'info.lens': 'Lens',
+    'info.aperture': 'Aperture', 'info.shutter': 'Shutter', 'info.focal': 'Focal',
+    'info.location': 'Location', 'info.coords': 'Coordinates',
+    'help.title': 'Shortcuts & Gestures', 'help.keyboard': 'Keyboard',
+    'help.mouse': 'Mouse', 'help.touch': 'Touch', 'help.or': 'or',
+    'help.kb.nav': 'Navigate photos', 'help.kb.space': 'Space',
+    'help.kb.spaceDesc': '(Solo mode) Hold to flip Before/After',
+    'help.kb.slider': 'Move slider 5%', 'help.kb.zoom': 'Zoom in / out',
+    'help.kb.reset': 'Reset zoom', 'help.kb.fs': 'Fullscreen',
+    'help.kb.info': 'Info panel', 'help.kb.mode': 'Switch mode',
+    'help.kb.help': 'This help',
+    'help.m.wheel': 'Wheel', 'help.m.wheelDesc': 'Zoom (anchored to cursor)',
+    'help.m.drag': 'Drag', 'help.m.dragDesc': 'Move slider · Pan when zoomed',
+    'help.m.press': 'Press (Solo)', 'help.m.pressDesc': 'Hold to flip Before/After',
+    'help.m.dblKnob': 'Double-click knob',
+    'help.m.dblKnobDesc': 'Slider returns to center (50%)',
+    'help.m.dbl': 'Double-click', 'help.m.dblDesc': 'Reset zoom',
+    'help.t.pinch': 'Pinch', 'help.t.pinchDesc': 'Zoom',
+    'help.t.drag': 'Horizontal drag',
+    'help.t.dragDesc': 'Move slider · quick flick switches photo',
+    'help.t.dbl': 'Double tap', 'help.t.dblDesc': 'Reset zoom',
+    'help.t.tap': 'Single tap', 'help.t.tapDesc': 'Show/hide UI',
+    'err.fewFiles': 'Select at least 2 images.',
+    'err.noPairs': 'No pair detected. Check that filenames follow camera patterns (IMG_NNNN, DSC_NNNNN, etc.) and contain originals + edited versions.',
+    'err.loadFail': 'Could not load any of the images.',
+    'err.exportFail': 'Export failed',
+    'load.reading': 'Reading {n} pairs…',
+    'load.processing': 'Processing {i}/{n}: {id}',
+    'load.preparing': 'Preparing export…',
+    'load.generating': 'Generating HTML…',
+    'hint.gestures': 'Swipe ⇆ to switch · Pinch to zoom',
+    'confirm.reload.title': 'Load other photos?',
+    'confirm.reload.msg': 'Current photos will be discarded. You can re-upload them later.',
+    'confirm.reload.yes': 'Discard and reload',
+    'geo.resolving': 'looking up…',
+    'geo.attribution': 'via OpenStreetMap',
+  },
+};
+
+// Idioma ativo. Detectado na ordem: localStorage > navigator.language > en-US.
+let currentLang = (() => {
+  try {
+    const saved = localStorage.getItem('lang');
+    if (saved && I18N[saved]) return saved;
+  } catch(_){}
+  return navigator.language && navigator.language.toLowerCase().startsWith('pt') ? 'pt-BR' : 'en-US';
+})();
+
+/**
+ * Tradução com substituição opcional de placeholders {chave}.
+ * Fallback chain: idioma atual → en-US → a própria key (último recurso).
+ *
+ * @param {string} key      Chave i18n (ex.: 'upload.button')
+ * @param {Object} [params] Mapa de variáveis pra substituir em {nome}
+ * @returns {string}
+ */
+function t(key, params){
+  const dict = I18N[currentLang] || I18N['en-US'];
+  let s = dict[key] || I18N['en-US'][key] || key;
+  if (params){
+    Object.keys(params).forEach(k => {
+      s = s.replace(new RegExp('\\{' + k + '\\}', 'g'), params[k]);
+    });
+  }
+  return s;
+}
+
+/**
+ * Aplica todas as traduções ao DOM. Roda uma vez no init e novamente
+ * a cada troca de idioma. Performance: é um único forEach DOM-wide,
+ * imperceptível mesmo com centenas de elementos.
+ */
+function applyI18n(){
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    el.textContent = t(el.dataset.i18n);
+  });
+  document.querySelectorAll('[data-i18n-title]').forEach(el => {
+    el.title = t(el.dataset.i18nTitle);
+  });
+  document.querySelectorAll('[data-i18n-aria]').forEach(el => {
+    el.setAttribute('aria-label', t(el.dataset.i18nAria));
+  });
+  document.documentElement.lang = currentLang;
+  const lbl = document.getElementById('langLabel');
+  if (lbl) lbl.textContent = currentLang === 'pt-BR' ? 'PT' : 'EN';
+}
+
+/**
+ * Troca o idioma e re-renderiza. Dispara evento 'lang:change' pro
+ * resto do app reagir (re-renderizar conteúdo dinâmico se preciso).
+ */
+function setLang(lang){
+  if (!I18N[lang] || lang === currentLang) return;
+  currentLang = lang;
+  try { localStorage.setItem('lang', lang); } catch(_){}
+  applyI18n();
+  document.dispatchEvent(new CustomEvent('lang:change', { detail: { lang } }));
+}
+
+// Liga o botão da topbar — alterna entre PT-BR e EN-US.
+const _btnLang = document.getElementById('btnLang');
+if (_btnLang){
+  _btnLang.addEventListener('click', () => {
+    setLang(currentLang === 'pt-BR' ? 'en-US' : 'pt-BR');
+  });
+}
+
+// Aplica traduções imediatamente (antes do DOM ser visto pelo usuário).
+applyI18n();
+
+/* ============================================================================
+   showConfirm — modal de confirmação custom (substitui window.confirm)
+
+   Usa o #confirmModal já presente no DOM. Retorna Promise<bool>:
+   resolve(true) quando o usuário clica "confirmar", resolve(false)
+   quando cancela / pressiona Esc / clica no fundo.
+
+   Vantagens sobre window.confirm:
+     - segue a identidade visual do app
+     - não bloqueia a thread principal (window.confirm é bloqueante)
+     - permite ESC e Enter como atalhos
+     - permite cor "danger" no botão primário pra ações destrutivas
+   ========================================================================== */
+function showConfirm(opts){
+  return new Promise(resolve => {
+    const modal = document.getElementById('confirmModal');
+    if (!modal){ resolve(false); return; }
+    const titleEl = document.getElementById('confirmTitle');
+    const msgEl = document.getElementById('confirmMsg');
+    const yesBtn = document.getElementById('confirmYes');
+    const noBtn = document.getElementById('confirmNo');
+
+    titleEl.textContent = opts.title || t('ui.confirm');
+    msgEl.textContent = opts.message || '';
+    yesBtn.textContent = opts.confirmLabel || t('ui.confirm');
+    noBtn.textContent = opts.cancelLabel || t('ui.cancel');
+    yesBtn.classList.toggle('danger', !!opts.danger);
+    modal.hidden = false;
+
+    // Cleanup: remove listeners pra não vazar memória entre invocações.
+    function cleanup(result){
+      modal.hidden = true;
+      yesBtn.removeEventListener('click', onYes);
+      noBtn.removeEventListener('click', onNo);
+      modal.removeEventListener('click', onBg);
+      document.removeEventListener('keydown', onKey, true);
+      resolve(result);
+    }
+    function onYes(){ cleanup(true); }
+    function onNo(){ cleanup(false); }
+    function onBg(e){ if (e.target === modal) cleanup(false); }
+    function onKey(e){
+      if (e.key === 'Escape'){ e.stopPropagation(); cleanup(false); }
+      else if (e.key === 'Enter'){ e.stopPropagation(); cleanup(true); }
+    }
+
+    yesBtn.addEventListener('click', onYes);
+    noBtn.addEventListener('click', onNo);
+    modal.addEventListener('click', onBg);
+    // capture:true pra interceptar Esc antes do handler global do app.
+    document.addEventListener('keydown', onKey, true);
+    // Foco no botão primário pra Enter funcionar imediatamente.
+    setTimeout(() => yesBtn.focus(), 50);
+  });
+}
 
 /** Mostra mensagem de erro embaixo do botão de upload. */
 function showError(msg){
@@ -1542,8 +1867,16 @@ function readTiff(v, base){
   if (tags[0x8769]) {
     try { exifTags = readIfd(v, base + tags[0x8769], base, le, u16, u32, i32); } catch(_){}
   }
+  // Tag 0x8825 = GPSInfo IFD pointer; aponta pro sub-IFD com coords.
+  // O GPS IFD usa um espaço de tags separado (0x0001-0x001F) — não
+  // misturamos com o resto pra não causar colisões de chave.
+  let gpsTags = {};
+  if (tags[0x8825]) {
+    try { gpsTags = readIfd(v, base + tags[0x8825], base, le, u16, u32, i32); } catch(_){}
+  }
   // Concatena IFD0 + EXIF: chaves do EXIF têm precedência caso conflitem.
-  return formatExif({...tags, ...exifTags});
+  // GPS passa separado pra formatExif (chaves overlapping com IFD0).
+  return formatExif({...tags, ...exifTags}, gpsTags);
 }
 
 /**
@@ -1586,18 +1919,39 @@ function readIfd(v, ifdOff, base, le, u16, u32, i32){
       } else if (type === 4){
         value = u32(valOff);                        // LONG
       } else if (type === 5){
-        // RATIONAL ocupa 8 bytes — sempre via offset.
+        // RATIONAL ocupa 8 bytes/valor — sempre via offset (sempre >4).
+        // Pode ser um único rational OU um array de N rationals (ex.:
+        // GPS Latitude/Longitude vêm como [graus, minutos, segundos]).
         const dOff = base + u32(valOff);
-        if (dOff + 8 > v.byteLength) continue;
-        const n = u32(dOff), d = u32(dOff + 4);
-        value = d === 0 ? 0 : n / d;
+        if (dOff + 8 * num > v.byteLength) continue;
+        if (num === 1){
+          const n = u32(dOff), d = u32(dOff + 4);
+          value = d === 0 ? 0 : n / d;
+        } else {
+          // Array — retorna como [Number, Number, ...].
+          value = [];
+          for (let k = 0; k < num; k++){
+            const o = dOff + k * 8;
+            const n = u32(o), d = u32(o + 4);
+            value.push(d === 0 ? 0 : n / d);
+          }
+        }
       } else if (type === 10){
         // SRATIONAL (signed rational) — usado p/ ApertureValue,
         // ShutterSpeedValue (logarítmicos), etc.
         const dOff = base + u32(valOff);
-        if (dOff + 8 > v.byteLength) continue;
-        const n = i32(dOff), d = i32(dOff + 4);
-        value = d === 0 ? 0 : n / d;
+        if (dOff + 8 * num > v.byteLength) continue;
+        if (num === 1){
+          const n = i32(dOff), d = i32(dOff + 4);
+          value = d === 0 ? 0 : n / d;
+        } else {
+          value = [];
+          for (let k = 0; k < num; k++){
+            const o = dOff + k * 8;
+            const n = i32(o), d = i32(o + 4);
+            value.push(d === 0 ? 0 : n / d);
+          }
+        }
       } else continue;                              // tipo não suportado
       tags[tag] = value;
     } catch(_){
@@ -1610,13 +1964,16 @@ function readIfd(v, ifdOff, base, le, u16, u32, i32){
 /**
  * Mapa de tags numéricas EXIF -> objeto humano amigável.
  * Constantes hex são as IDs oficiais do EXIF spec.
+ *
+ * @param {Object} tags  Tags do IFD0 + EXIF sub-IFD (concatenadas).
+ * @param {Object} gps   Tags do GPS sub-IFD (separadas — IDs distintas).
  */
-function formatExif(t){
+function formatExif(tags, gps){
   const out = {};
   // Make + Model (0x010F + 0x0110). Concatena se Model não começar com Make
   // (evita "Canon Canon EOS R5").
-  const make = t[0x010F];
-  const model = t[0x0110];
+  const make = tags[0x010F];
+  const model = tags[0x0110];
   if (make || model){
     let m = (model || '').trim();
     let mk = (make || '').trim();
@@ -1624,31 +1981,63 @@ function formatExif(t){
     out.camera = (m || mk).trim();
   }
   // 0xA434 = LensModel.
-  const lens = t[0xA434];
+  const lens = tags[0xA434];
   if (lens) out.lens = String(lens).trim();
+  // 0x013B = Artist (autor). Fallback pra 0x8298 = Copyright (alguns
+  // cameras só populam um ou outro).
+  const author = tags[0x013B] || tags[0x8298];
+  if (author) out.author = String(author).trim();
   // DateTimeOriginal (0x9003) é o ideal; fallback pra DateTime (0x0132)
   // que registra a última modificação. Formato EXIF: "YYYY:MM:DD HH:MM:SS";
   // troco os primeiros : por - pra ficar mais legível.
-  const date = t[0x9003] || t[0x0132];
+  const date = tags[0x9003] || tags[0x0132];
   if (date){
     out.date = String(date).replace(/^(\d{4}):(\d{2}):(\d{2})/, '$1-$2-$3').trim();
   }
   // ISO: 0x8827 (legacy) ou 0x8833 (PhotographicSensitivity moderno).
-  const iso = t[0x8827] || t[0x8833];
+  const iso = tags[0x8827] || tags[0x8833];
   if (iso) out.iso = `ISO ${iso}`;
   // FNumber (0x829D) — abertura como número decimal (ex.: 2.8).
-  const fn = t[0x829D];
+  const fn = tags[0x829D];
   if (fn) out.aperture = `f/${(+fn).toFixed(1)}`;
   // ExposureTime (0x829A) em segundos. Se >=1s, mostra em segundos;
   // senão converte pra fração 1/N.
-  const exp = t[0x829A];
+  const exp = tags[0x829A];
   if (exp){
     if (exp >= 1) out.shutter = `${(+exp).toFixed(1)}s`;
     else out.shutter = `1/${Math.round(1/exp)}s`;
   }
   // FocalLength (0x920A) em mm.
-  const fl = t[0x920A];
+  const fl = tags[0x920A];
   if (fl) out.focal = `${Math.round(+fl)}mm`;
+
+  // ---- GPS ----
+  // Tags GPS:
+  //   0x0001 GPSLatitudeRef  (ASCII: 'N' ou 'S')
+  //   0x0002 GPSLatitude     (RATIONAL[3]: graus, minutos, segundos)
+  //   0x0003 GPSLongitudeRef (ASCII: 'E' ou 'W')
+  //   0x0004 GPSLongitude    (RATIONAL[3]: graus, minutos, segundos)
+  // Converte DMS pra grau decimal: dec = D + M/60 + S/3600, com sinal
+  // negativo pra S (sul) e W (oeste).
+  if (gps){
+    const latRef = (gps[0x0001] || '').toString().trim().toUpperCase();
+    const lonRef = (gps[0x0003] || '').toString().trim().toUpperCase();
+    const latDMS = gps[0x0002];
+    const lonDMS = gps[0x0004];
+    if (Array.isArray(latDMS) && latDMS.length === 3 &&
+        Array.isArray(lonDMS) && lonDMS.length === 3){
+      let lat = latDMS[0] + latDMS[1]/60 + latDMS[2]/3600;
+      let lon = lonDMS[0] + lonDMS[1]/60 + lonDMS[2]/3600;
+      if (latRef === 'S') lat = -lat;
+      if (lonRef === 'W') lon = -lon;
+      if (isFinite(lat) && isFinite(lon)){
+        out.lat = lat;
+        out.lon = lon;
+        // Formato pra exibição: 5 casas decimais ≈ ~1 metro de precisão.
+        out.coords = `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
+      }
+    }
+  }
   return out;
 }
 
@@ -1671,19 +2060,19 @@ async function handleFiles(fileList){
   // exóticas, mas preenchem file.type).
   const files = [...fileList].filter(f => IMG_RE.test(f.name) || (f.type && f.type.startsWith('image/')));
   if (files.length < 2){
-    showError('Selecione pelo menos 2 imagens.');
+    showError(t('err.fewFiles'));
     return;
   }
   const pairs = pairFiles(files);
   if (!pairs.length){
-    showError('Nenhum par detectado. Verifique se os nomes têm 4 dígitos consecutivos depois de um "_" (ex.: IMG_0093.jpg + IMG_0093_edit.jpg).');
+    showError(t('err.noPairs'));
     return;
   }
 
   // Troca a tela de upload pela de loading.
   uploadScreen.hidden = true;
   loadingScreen.hidden = false;
-  loadingText.textContent = `Lendo ${pairs.length} pares…`;
+  loadingText.textContent = t('load.reading', { n: pairs.length });
 
   const data = [];
   // Processa par a par, sequencialmente, pra dar feedback visual e
@@ -1691,7 +2080,7 @@ async function handleFiles(fileList){
   for (let i = 0; i < pairs.length; i++){
     const p = pairs[i];
     loadingFill.style.width = `${(i / pairs.length) * 100}%`;
-    loadingText.textContent = `Processando ${i+1} / ${pairs.length}: ${p.id}`;
+    loadingText.textContent = t('load.processing', { i: i+1, n: pairs.length, id: p.id });
     try {
       // Dentro do par, paraleliza (Promise.all): leitura do "antes",
       // "depois" e EXIF. O thumb é gerado só do "antes" pra economizar
@@ -1719,7 +2108,7 @@ async function handleFiles(fileList){
     // Volta pra tela de upload com aviso.
     loadingScreen.hidden = true;
     uploadScreen.hidden = false;
-    showError('Não consegui carregar nenhuma das imagens.');
+    showError(t('err.loadFail'));
     return;
   }
   // Pequeno timeout pra a animação da barra terminar visualmente.
@@ -1893,8 +2282,77 @@ function startApp(DATA){
     measureViewer();
     baseScale = computeBaseScale();
     reset();
-    if (mode === 'solo') applySolo(); else setCut(50);
+    // Em modo solo, applySolo recalcula a posição correta (0 ou 100).
+    // Em compare, PRESERVAMOS o valor atual de cut entre fotos —
+    // assim o usuário pode segurar o knob e ir trocando de foto via
+    // teclado sem o slider snapar pro centro. clampCut garante que,
+    // se a nova foto tem aspect ratio diferente, o cut continua
+    // dentro dos limites laterais da imagem nova.
+    if (mode === 'solo') applySolo();
+    else clampCut();
     updateInfoPanel(item);
+  }
+
+  /* ---------------------------------------------------------------------------
+     REVERSE GEOCODING (lat/lon -> "Cidade, Estado, País")
+
+     Usa Nominatim (OpenStreetMap). Único endpoint externo do app;
+     opt-in implícito: só dispara quando o EXIF contém GPS válido e
+     o usuário abriu a sidebar (chamado em updateInfoPanel).
+
+     Privacidade: latitude/longitude vão pro Nominatim. As fotos em
+     si NÃO vão — só as coordenadas. Adicionamos atribuição "via
+     OpenStreetMap" ao lado do resultado pra transparência.
+
+     Rate limit do Nominatim: 1 req/s. Implementamos throttling via
+     fila simples + cache em memória (perde-se no reload, OK).
+     --------------------------------------------------------------------------- */
+  const _geoCache = new Map();  // key: "lat.toFixed(4),lon.toFixed(4)"
+  let _geoQueue = Promise.resolve();  // serializa requests
+
+  /**
+   * Resolve coordenadas (lat/lon) pra "Cidade, Estado, País" via
+   * Nominatim. Cacheia o resultado pra não repetir requests.
+   *
+   * @param {number} lat
+   * @param {number} lon
+   * @returns {Promise<string|null>}
+   */
+  function reverseGeocode(lat, lon){
+    const key = `${lat.toFixed(4)},${lon.toFixed(4)}`;
+    if (_geoCache.has(key)) return Promise.resolve(_geoCache.get(key));
+    // Encadeia no fim da fila pra respeitar rate-limit.
+    _geoQueue = _geoQueue.then(async () => {
+      // Espera 1100ms entre requests (margem de segurança sobre 1/s).
+      await new Promise(r => setTimeout(r, 1100));
+    });
+    const p = _geoQueue.then(async () => {
+      try {
+        const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10&addressdetails=1`;
+        const res = await fetch(url, {
+          headers: { 'Accept-Language': currentLang },
+        });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        const a = data.address || {};
+        // Prioridade: city > town > village > suburb > county.
+        // Cidade pode estar em qualquer um deles dependendo do país.
+        const parts = [
+          a.city || a.town || a.village || a.suburb || a.county,
+          a.state,
+          a.country,
+        ].filter(Boolean);
+        const result = parts.join(', ') || null;
+        _geoCache.set(key, result);
+        return result;
+      } catch(e){
+        // Falha silenciosa — sem rede, sem GPS resolvido. Cacheia null
+        // pra não ficar tentando de novo no mesmo par.
+        _geoCache.set(key, null);
+        return null;
+      }
+    });
+    return p;
   }
 
   /**
@@ -1914,8 +2372,36 @@ function startApp(DATA){
     const exif = item.exif || {};
     let any = false;
     document.querySelectorAll('#exifBlock .info-row').forEach(row => {
-      const v = exif[row.dataset.k];
+      const k = row.dataset.k;
       const valEl = row.querySelector('.iv');
+      // Tratamento especial pra "location": começa "consultando..."
+      // e atualiza quando o geocoder responder (async).
+      if (k === 'location'){
+        if (exif.lat != null && exif.lon != null){
+          valEl.textContent = t('geo.resolving');
+          valEl.classList.add('iv-pending');
+          row.style.display = 'flex';
+          any = true;
+          // Snapshot do índice pra ignorar resposta se o usuário trocou
+          // de foto antes da Promise resolver.
+          const seq = current;
+          reverseGeocode(exif.lat, exif.lon).then(loc => {
+            if (seq !== current) return;
+            valEl.classList.remove('iv-pending');
+            if (loc){
+              valEl.textContent = loc;
+              valEl.title = t('geo.attribution');
+            } else {
+              row.style.display = 'none';
+            }
+          });
+        } else {
+          row.style.display = 'none';
+        }
+        return;
+      }
+      // Demais campos: simples mapeamento de string.
+      const v = exif[k];
       if (v){ valEl.textContent = v; row.style.display = 'flex'; any = true; }
       else row.style.display = 'none';
     });
@@ -1943,20 +2429,45 @@ function startApp(DATA){
     if (!natW || !natH) return 1;
     return Math.min(viewerW / natW, viewerH / natH);
   }
-  /** Aplica transform sincronizado nas duas <img> e atualiza o label. */
+  /** Aplica transform sincronizado nas duas <img> e atualiza o label.
+   *  Também re-clampa o cut, já que zoom/pan mudam os limites laterais
+   *  da imagem renderizada (e o cut precisa ficar dentro deles). */
   function applyTransform(){
     const t = `translate(-50%,-50%) translate(${panX}px,${panY}px) scale(${baseScale*scale})`;
     imgB.style.transform = t; imgA.style.transform = t;
     zoomLabel.textContent = Math.round(scale * 100) + '%';
     // Usado pelo CSS pra mudar o cursor (grab) quando há zoom.
     compareView.classList.toggle('scale-zoom', scale > 1.001);
+    // Re-clampa: se zoom diminuiu deixando margens nas laterais, o cut
+    // pode ter ficado fora do range válido da nova imagem renderizada.
+    clampCut();
   }
-  /** Move o slider clipando a layer-after via clip-path:inset(0 0 0 cut%). */
+  /**
+   * Calcula os limites laterais da imagem renderizada em % da viewer.
+   * Usado pra impedir o slider de sair pra área "fora da foto" (margem
+   * preta nas laterais quando a foto é mais estreita que a viewer).
+   *
+   * Retorna {min, max} em percentuais (0-100). Quando há zoom e a
+   * imagem extrapola a viewer, satura em 0 e 100.
+   */
+  function getCutBounds(){
+    const dispW = natW * baseScale * scale;
+    const left = ((viewerW/2 + panX) - dispW/2) / viewerW * 100;
+    const right = ((viewerW/2 + panX) + dispW/2) / viewerW * 100;
+    return { min: Math.max(0, left), max: Math.min(100, right) };
+  }
+
+  /** Move o slider clipando a layer-after via clip-path:inset(0 0 0 cut%).
+   *  Clampado pelos limites horizontais da imagem renderizada — não
+   *  deixa o usuário arrastar pra fora dos limites laterais da foto. */
   function setCut(pct){
-    cut = Math.max(0, Math.min(100, pct));
+    const b = getCutBounds();
+    cut = Math.max(b.min, Math.min(b.max, pct));
     layerAfter.style.setProperty('--cut', cut + '%');
     handle.style.left = cut + '%';
   }
+  /** Re-aplica os bounds ao cut atual (útil após zoom/pan/resize). */
+  function clampCut(){ setCut(cut); }
   /** Volta ao "fit" puro (zoom 1, sem pan). */
   function reset(){ scale = 1; panX = 0; panY = 0; applyTransform(); }
   /**
@@ -2304,14 +2815,21 @@ function startApp(DATA){
    * recarrega a página, voltando à tela de upload. confirm() pra
    * evitar perder os pares atuais por engano.
    */
-  $('btnReload').addEventListener('click', () => {
-    if (confirm('Carregar outro lote de fotos? (as atuais serão descartadas)')){
-      DATA.forEach(it => {
-        if (it.b.src.startsWith('blob:')) URL.revokeObjectURL(it.b.src);
-        if (it.a.src.startsWith('blob:')) URL.revokeObjectURL(it.a.src);
-      });
-      location.reload();
-    }
+  $('btnReload').addEventListener('click', async () => {
+    // Custom confirm modal (substitui window.confirm nativo).
+    const ok = await showConfirm({
+      title: t('confirm.reload.title'),
+      message: t('confirm.reload.msg'),
+      confirmLabel: t('confirm.reload.yes'),
+      danger: true,  // botão vermelho — ação destrutiva
+    });
+    if (!ok) return;
+    // Revoga Object URLs pra liberar a referência aos Files na RAM.
+    DATA.forEach(it => {
+      if (it.b.src.startsWith('blob:')) URL.revokeObjectURL(it.b.src);
+      if (it.a.src.startsWith('blob:')) URL.revokeObjectURL(it.a.src);
+    });
+    location.reload();
   });
 
   /* ---------- Atalhos de teclado ---------- */
@@ -2593,7 +3111,7 @@ function startApp(DATA){
     const fill = $('loadingFill');
     const text = $('loadingText');
     loading.hidden = false;
-    text.textContent = 'Preparando exportação…';
+    text.textContent = t('load.preparing');
     fill.style.width = '0%';
 
     // Reduz a duração total: pares são processados em paralelo
@@ -2603,7 +3121,7 @@ function startApp(DATA){
     try {
       for (let i = 0; i < items.length; i++){
         const p = items[i];
-        text.textContent = `Processando ${i+1}/${items.length}: ${p.id}`;
+        text.textContent = t('load.processing', { i: i+1, n: items.length, id: p.id });
         fill.style.width = `${(i / items.length) * 100}%`;
         const [bSrc, aSrc] = await Promise.all([
           reencodeImage(p.b.src, 2000, 0.82),
@@ -2619,11 +3137,11 @@ function startApp(DATA){
         });
       }
       fill.style.width = '100%';
-      text.textContent = 'Gerando HTML…';
+      text.textContent = t('load.generating');
 
       const title = kind === 'one'
         ? `image-pair-viewer · ${out[0].id}`
-        : 'image-pair-viewer (galeria offline)';
+        : 'image-pair-viewer (' + (currentLang === 'pt-BR' ? 'galeria offline' : 'offline gallery') + ')';
       const filename = kind === 'one'
         ? `image-pair-${out[0].id}.html`
         : `image-pair-gallery-${new Date().toISOString().slice(0,10)}.html`;
@@ -2632,7 +3150,9 @@ function startApp(DATA){
       downloadHTML(html, filename);
     } catch(err){
       console.error('Export failed', err);
-      alert('Falha ao exportar: ' + (err.message || err));
+      // Alert ainda é nativo aqui — falhas catastróficas não bloqueiam
+      // o usuário com modal (que ele pode confundir com confirmação).
+      alert(t('err.exportFail') + ': ' + (err.message || err));
     } finally {
       // Pequeno delay pra UX não piscar.
       setTimeout(() => { loading.hidden = true; }, 400);
@@ -2668,11 +3188,19 @@ function startApp(DATA){
     $('exportOne')?.addEventListener('click', () => exportItems([DATA[current]], 'one'));
   }
 
+  /* ---------- Reage a mudança de idioma ----------
+     Re-renderiza o info panel pra que strings traduzidas dinamicamente
+     (ex.: "consultando..." da geocoding) atualizem. Os labels com
+     data-i18n já são tratados pelo applyI18n global automaticamente. */
+  document.addEventListener('lang:change', () => {
+    if (DATA[current]) updateInfoPanel(DATA[current]);
+  });
+
   /* ---------- Boot ---------- */
   applySidebar();
   load(0);
   // Hint inicial só no mobile, pra ensinar os gestos.
-  if (isTouchDevice) showHint('Deslize ⇆ para trocar · Pinça para zoom', 2800);
+  if (isTouchDevice) showHint(t('hint.gestures'), 2800);
 }
 
 /* ============================================================================
