@@ -50,6 +50,46 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <title>image-pair-viewer</title>
 <style>
+/* ==========================================================================
+   DESIGN TOKENS  (CSS custom properties)
+
+   Concentrar a paleta inteira em :root deixa qualquer mudança de tema
+   trivial — basta editar um valor aqui e o site inteiro acompanha.
+   Por que custom properties em vez de SASS/LESS?
+     1. Resolução em runtime: ainda dá pra alterar via JS (set/getProperty).
+     2. Cascade real: derivam por elemento, então temas em escopo são
+        triviais (basta sobrescrever em outro seletor).
+     3. Sem tooling: vivem no próprio CSS sem etapa de build.
+
+   PALETA — escala de cinzas em 5 passos do mais escuro pro mais claro:
+     --bg     fundo da tela (preto-azulado, não preto puro pra evitar
+              "blackout" em OLED quando há motion)
+     --bg-1   fundo do topbar/sidebar (1 passo acima)
+     --bg-2   fundo de elementos elevados (badges, chips)
+     --bg-3   estado "active" / botões pressionados
+     --bg-4   reservado pra hover/highlight forte
+     --line   borda padrão (~bg-3 mas levemente diferente p/ contraste)
+     --line-2 borda secundária (mais sutil)
+
+   TEXTOS — também 4 passos do mais legível pro mais discreto:
+     --fg     texto primário (alto contraste)
+     --fg-2   texto secundário (~80% intensidade)
+     --fg-3   texto auxiliar / labels (mais apagado)
+     --fg-4   placeholder / texto inativo
+
+   ACCENTS — 2 cores semânticas pra "antes" vs "depois":
+     --before  azul-ciano (associação universal de "frio/original")
+     --after   âmbar/laranja (associação de "calor/processado")
+     --accent  alias de --after pra UI elements (botões primários, etc.)
+
+   MISC:
+     --shadow  sombra "lift" usada em modais e dropdowns
+     --r       raio de borda padrão
+     --r-lg    raio maior pra cards/modais
+     --t-fast  transição rápida (hover, click) — 120ms é o sweet spot
+               de feedback humano (notável mas não lento)
+     --t-med   transição média (panels deslizando) — ~220ms
+   ========================================================================== */
 :root{
   --bg:#08090c;--bg-1:#0e1015;--bg-2:#161922;--bg-3:#1d2230;--bg-4:#262b3a;
   --line:#262a36;--line-2:#1c1f2a;
@@ -58,49 +98,128 @@
   --shadow:0 10px 40px rgba(0,0,0,.55);
   --r:10px;--r-lg:14px;--t-fast:.12s;--t-med:.22s;
 }
+
+/* Reset universal:
+   - box-sizing:border-box em TUDO faz padding/border contarem dentro do
+     width — evita aquela frustração eterna de "100% + 20px = overflow".
+   - -webkit-tap-highlight-color:transparent tira aquele flash cinza ao
+     tocar elementos no Safari/Chrome mobile (visual indesejado num
+     tooling de imagem). */
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+
+/* html/body:
+   - height:100% encadeia até o flex root abaixo conseguir ocupar a tela.
+   - overflow:hidden bloqueia scroll da página inteira — o app gerencia
+     seu próprio scroll dentro de regiões específicas (sidebar, strip).
+   - overscroll-behavior:none impede o "bounce" elástico no iOS quando
+     a UI inteira não é scrollável (caso contrário o usuário arrasta
+     a página inteira ao tentar zoom).
+   - font-stack nativo: evita download de webfont, carrega instantâneo,
+     usa o que o SO escolheu pra sua preferência. */
 html,body{margin:0;padding:0;height:100%;background:var(--bg);color:var(--fg);
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif;
   font-size:14px;overflow:hidden;overscroll-behavior:none}
+
+/* Botões herdam font-family por padrão em alguns browsers, em outros não.
+   Garantir que tudo usa a mesma stack evita o "Arial pop" em formulários. */
 button{font-family:inherit;color:inherit}
+
+/* <kbd>: estiliza referências a teclas no modal de ajuda parecendo
+   teclas de teclado (border-bottom mais grossa simula o relevo). */
 kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:11px;
   background:var(--bg-3);border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;
   padding:1px 6px;color:var(--fg);min-width:20px;text-align:center}
+
+/* Classe utilitária pra forçar fonte monospace (nomes de arquivo,
+   números, etc. ficam mais legíveis com largura uniforme). */
 .mono{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace}
 
+/* ----- LAYOUT ROOT -----
+   .app é o container vertical principal: topbar (altura fixa) +
+   main (flex:1) + thumbstrip (altura fixa).
+   - 100dvh: dynamic viewport height — desconta a barra de URL do iOS
+     dinamicamente. Cai pro 100vh em browsers antigos (declaração dupla
+     funciona como fallback automático).
+   - is-empty / is-loading: o app começa invisível e só aparece quando
+     o array DATA termina de ser construído — evita flash de UI vazia. */
 .app{display:flex;flex-direction:column;height:100dvh;height:100vh}
 .app.is-loading,.app.is-empty{visibility:hidden}
 
-/* ============ UPLOAD SCREEN ============ */
+/* ==========================================================================
+   UPLOAD SCREEN
+
+   Tela de "boas-vindas" que cobre o app. Aparece antes de qualquer
+   imagem ser carregada. Funciona como:
+     - dropzone full-screen (drag-and-drop em qualquer pixel funciona)
+     - card central com botão de seleção
+     - explicação de como o pareamento funciona
+     - aviso de privacidade
+
+   z-index:200 garante que fica acima de tudo (incluindo modais futuros).
+   ========================================================================== */
+
+/* O fundo é gradient radial sutil pra ter "centro de atenção" sem usar
+   imagem (zero kilobyte de download).
+   transition:opacity prepara o terreno pra fade-out futuro (não usado
+   ainda — hoje é hidden direto, mas o hook está aqui).
+   overflow-y:auto pra acomodar telinhas pequenas onde o card não cabe. */
 .upload-screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
   background:radial-gradient(ellipse at center,#0d0e13 0%,#08090c 70%);z-index:200;padding:24px;
   transition:opacity var(--t-med);overflow-y:auto}
+
+/* [hidden] é um atributo HTML padrão; usamos display:none pra anular
+   visibilidade. Forçar isso aqui evita conflitos caso alguém adicione
+   display:flex inline dinamicamente. */
 .upload-screen[hidden]{display:none}
+
+/* Estado quando o usuário está arrastando um arquivo sobre a janela:
+   o card highlights com a cor de accent. JS adiciona/remove .is-drag. */
 .upload-screen.is-drag .upload-card{border-color:var(--accent);background:rgba(255,174,60,.06)}
+
+/* Card central — borda dashed sinaliza visualmente "área de drop"
+   (convenção universal de UI de upload). */
 .upload-card{background:var(--bg-1);border:1px dashed var(--line);border-radius:18px;
   padding:44px 40px;max-width:560px;width:100%;text-align:center;
   transition:border-color var(--t-fast),background var(--t-fast)}
+
+/* Logo decorativa: 2 círculos sobrepostos representando "antes" e
+   "depois". Contém 2 .dot — o segundo tem margin-left negativa pra
+   se sobrepor parcialmente ao primeiro. */
 .upload-logo{display:inline-flex;align-items:center;gap:4px;margin-bottom:18px;position:relative;
   height:36px}
 .upload-logo .dot{width:24px;height:24px;border-radius:50%;
   box-shadow:0 0 0 1px rgba(0,0,0,.3),0 4px 16px rgba(0,0,0,.4)}
 .upload-logo .dot:nth-child(1){background:var(--before)}
+/* mix-blend-mode:screen faz a sobreposição parecer "luz", não cor sólida —
+   o miolo dos dois dots aparece como um tom intermediário. */
 .upload-logo .dot:nth-child(2){background:var(--after);margin-left:-8px;mix-blend-mode:screen}
+
+/* Tipografia do card */
 .upload-card h1{font-size:22px;margin:0 0 8px;font-weight:600;letter-spacing:.2px}
 .upload-card h1 em{color:var(--accent);font-style:normal}
 .upload-card p{margin:0 0 24px;color:var(--fg-2);line-height:1.55;font-size:14px}
+
+/* Botão CTA principal: gradient âmbar pra pegar o olho.
+   border-radius:999px = pílula (qualquer valor maior que metade da
+   altura faz o mesmo efeito; 999px é mais semântico que "9999"). */
 .upload-btn{display:inline-flex;align-items:center;gap:10px;padding:12px 22px;
   background:linear-gradient(180deg,#ffbe55,#ff9a18);color:#15161b;font-weight:700;
   border-radius:999px;cursor:pointer;border:none;font-size:14px;
+  /* Sombra externa colorida + sombra interna branca dão efeito de "botão físico". */
   box-shadow:0 6px 22px rgba(255,154,24,.35),0 1px 0 rgba(255,255,255,.4) inset;
   transition:transform var(--t-fast),box-shadow var(--t-fast);font-family:inherit}
 .upload-btn:hover{transform:translateY(-1px);
   box-shadow:0 8px 28px rgba(255,154,24,.45),0 1px 0 rgba(255,255,255,.4) inset}
 .upload-btn svg{width:16px;height:16px}
+
+/* Variante secundária — discreta (apenas link sublinhado). */
 .upload-secondary{display:block;margin-top:14px;color:var(--fg-3);font-size:12px;
   background:transparent;border:none;cursor:pointer;text-decoration:underline;
   text-decoration-color:var(--fg-4);text-underline-offset:2px}
 .upload-secondary:hover{color:var(--fg-2)}
+
+/* Caixa de regras explicando o pareamento — visualmente separada
+   por divisor superior pra não competir com o CTA. */
 .upload-rules{margin-top:24px;padding-top:20px;border-top:1px solid var(--line-2);
   text-align:left;font-size:12px;color:var(--fg-3);line-height:1.6}
 .upload-rules b{color:var(--fg-2);font-weight:600}
@@ -108,41 +227,100 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
   font-family:ui-monospace,Consolas,monospace;color:var(--fg-2);font-size:11px}
 .upload-rules ul{margin:6px 0 0 0;padding-left:18px}
 .upload-rules li{margin:3px 0}
+
+/* Linha de "privacidade" com ícone de cadeado — texto pequeno e cinza
+   pra ser presente sem dominar visualmente. */
 .upload-priv{margin-top:18px;font-size:11px;color:var(--fg-4);display:flex;align-items:center;
   gap:6px;justify-content:center}
 .upload-priv svg{width:13px;height:13px;flex-shrink:0}
+
+/* Caixa de erro — só aparece se o JS chamar showError().
+   Cores avermelhadas mas suaves (rgba transparente em cima do bg
+   escuro fica menos agressivo que vermelho puro). */
 .upload-error{margin-top:14px;padding:10px 14px;background:rgba(255,80,80,.08);
   border:1px solid rgba(255,80,80,.25);color:#ff8e8e;border-radius:8px;font-size:13px}
 .upload-error[hidden]{display:none}
 
-/* ============ LOADING SCREEN ============ */
+/* ==========================================================================
+   LOADING SCREEN
+
+   Aparece entre o submit do upload e a renderização do app. Mostra
+   o progresso de carregamento dos pares (cada par é decodificado +
+   parsed pra EXIF, o que pode demorar 100-500ms por par dependendo
+   do tamanho).
+
+   z-index:150 < 200 da upload-screen, mas > 10 do topbar — fica
+   "no meio" da pilha.
+   ========================================================================== */
 .loading-screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
   background:var(--bg);z-index:150;flex-direction:column;gap:20px}
 .loading-screen[hidden]{display:none}
+
+/* Spinner clássico: aro escuro com 1 quadrante colorido girando.
+   border-top-color colorido + animation faz o efeito; o resto do
+   border (escuro) age como "trilho". */
 .spinner{width:48px;height:48px;border:3px solid var(--bg-3);border-top-color:var(--accent);
   border-radius:50%;animation:spin .9s linear infinite}
+/* Animação separada porque pode ser referenciada por outros elementos.
+   linear (não ease) porque rotação contínua não tem início/fim natural
+   pra acelerar/desacelerar. */
 @keyframes spin{to{transform:rotate(360deg)}}
+
 .loading-text{font-size:13px;color:var(--fg-2)}
+
+/* Barra de progresso — width 0 inicialmente, JS atualiza style.width.
+   transition:width 0.2s ease suaviza os "saltos" (sem isso a barra
+   pula em degraus a cada par). overflow:hidden corta o fill ao raio
+   da barra externa. */
 .loading-bar{width:240px;height:3px;background:var(--bg-3);border-radius:2px;overflow:hidden}
 .loading-bar-fill{height:100%;background:var(--accent);width:0;transition:width .2s ease}
 
-/* ============ TOPBAR ============ */
+/* ==========================================================================
+   TOPBAR
+
+   Barra superior fixa (54px) com 3 zonas:
+     [BRAND]              [MODES]              [ACTIONS]
+     ---esquerda---       ---meio---           ---direita---
+
+   flex-shrink:0 nos extremos garante que se a tela ficar estreita,
+   apenas o meio (modes) é "comprimido" — o brand e ações ficam
+   sempre legíveis.
+   ========================================================================== */
+
+/* flex:0 0 auto = não cresce, não encolhe, ocupa apenas o necessário
+   (54px). z-index:10 acima do conteúdo principal, abaixo de modal/upload. */
 .topbar{flex:0 0 auto;display:flex;align-items:center;gap:14px;padding:0 16px;
   height:54px;background:linear-gradient(180deg,var(--bg-1),var(--bg));
   border-bottom:1px solid var(--line);position:relative;z-index:10}
+
+/* Bloco esquerdo: logo + título + contador */
 .brand{display:flex;align-items:center;gap:11px;flex-shrink:0;min-width:0}
 .logo{display:flex;align-items:center;gap:-2px;position:relative;width:30px;height:18px}
+/* Logo da topbar é menor que a do upload — usa position:absolute pra
+   sobreposição precisa (margin-left negativo nem sempre é confiável
+   em flex containers com gap). */
 .logo .dot{position:absolute;top:50%;width:14px;height:14px;border-radius:50%;
   transform:translateY(-50%);box-shadow:0 0 0 1px rgba(0,0,0,.3)}
 .logo .dot-b{left:0;background:var(--before)}
 .logo .dot-a{left:14px;background:var(--after);mix-blend-mode:screen}
+
+/* Container do texto à direita do logo (título empilhado com counter) */
 .brand-text{display:flex;flex-direction:column;line-height:1.1;min-width:0}
+/* white-space + overflow + text-ellipsis = trunca com "…" se overflow.
+   min-width:0 no parent é necessário pra ellipsis funcionar em flex item
+   (default min-width:auto impede o shrink). */
 .brand h1{font-size:14px;font-weight:600;margin:0;letter-spacing:.2px;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .brand h1 em{color:var(--accent);font-style:normal}
 .brand h1 .sep{color:var(--fg-4);margin:0 4px;font-weight:400}
+/* font-feature-settings "tnum" = tabular numbers (todos dígitos com
+   mesma largura) — evita "5/21" virar "11/21" mexendo o layout
+   conforme o número aumenta. */
 .brand .counter{font-size:11px;color:var(--fg-3);margin-top:1px;font-feature-settings:"tnum"}
 
+/* Bloco do meio: switcher de modo, segmented control style.
+   margin:0 auto centra horizontalmente o widget no espaço disponível
+   entre brand e actions (que são flex-shrink:0). */
 .modes{display:flex;background:var(--bg-2);border-radius:999px;padding:3px;gap:2px;
   margin:0 auto;border:1px solid var(--line)}
 .mode-btn{display:flex;align-items:center;gap:6px;padding:6px 12px;font-size:12px;
@@ -150,10 +328,16 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
   transition:color var(--t-fast),background var(--t-fast);white-space:nowrap;font-weight:500}
 .mode-btn svg{width:14px;height:14px}
 .mode-btn:hover{color:var(--fg)}
+/* Estado active: fundo elevado + sombra interna sutil simula
+   "botão pressionado" pro efeito tactile do segmented control. */
 .mode-btn.active{background:var(--bg-3);color:var(--fg);
   box-shadow:0 1px 2px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.04)}
 
+/* Bloco da direita: botões de ação (info, fullscreen, ajuda, reload) */
 .actions{display:flex;gap:4px;flex-shrink:0}
+/* Botões 36x36 — área mínima recomendada de 44x44 não atendida aqui
+   no desktop por questão de densidade visual; em mobile é reduzido pra
+   34x34 mas mais largo o gap (vide media queries abaixo). */
 .icon-btn{width:36px;height:36px;border-radius:8px;background:transparent;
   border:1px solid transparent;color:var(--fg-2);cursor:pointer;display:flex;
   align-items:center;justify-content:center;transition:all var(--t-fast);padding:0}
@@ -161,84 +345,214 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
 .icon-btn:hover{background:var(--bg-2);color:var(--fg);border-color:var(--line)}
 .icon-btn.active{background:var(--bg-3);color:var(--accent);border-color:var(--line)}
 
-/* ============ MAIN ============ */
+/* ==========================================================================
+   MAIN — área central + sidebar
+
+   .main é flex row: stage (esquerda, expansível) + sidebar (direita,
+   fixa em desktop, virá bottom-sheet em mobile via media query).
+
+   min-height:0 é DECISIVO: sem isso, um filho overflow se torna o
+   piso da altura do flex parent, vazando o app pra fora da viewport.
+   Esse é o "min-height:0 trick" famoso de flexbox.
+   ========================================================================== */
 .main{flex:1 1 auto;display:flex;min-height:0;position:relative}
+
+/* .stage: container do viewer atual (compare ou side).
+   overflow:hidden corta tudo que vazar — necessário pra clip-path
+   da camada e pra contenção do zoom alto. */
 .stage{flex:1 1 auto;position:relative;overflow:hidden;background:#050608;min-width:0}
 
+/* ----- VIEW SWITCHER -----
+   Cada modo (compare/side) é um <div class="view"> independente.
+   Apenas um fica ativo por vez, escolhido via classe .active.
+   A presença adicional de .side-active força display:flex (em vez de
+   block) — necessário pro layout de duas colunas do side-view. */
 .view{position:absolute;inset:0;display:none}
 .view.active{display:block}
 .view.side-active{display:flex}
 
+/* ==========================================================================
+   COMPARE VIEW (slider) e SOLO
+
+   Usado por dois modos:
+     - 'compare' (slider): handle visível, ambas as imagens com
+       transform sincronizado, layer-after clipada por --cut.
+     - 'solo': handle escondido (.compare-view.solo), --cut é setado
+       pra 0 ou 100 mostrando uma imagem só.
+
+   ATENÇÃO — touch-action:none é OBRIGATÓRIO. Sem isso, o navegador
+   intercepta arrasto vertical pra rolagem nativa e pinch-zoom pro
+   zoom da página, quebrando todos os gestos do app. Como ESTAMOS
+   tratando esses gestos manualmente via Pointer Events, precisamos
+   desligar o handling default.
+   ========================================================================== */
 .compare-view{cursor:grab;user-select:none;touch-action:none}
+/* Cursores semânticos por estado de drag — feedback visual contínuo
+   sobre o que vai acontecer ao soltar. */
 .compare-view.panning{cursor:grabbing}
 .compare-view.cut-dragging{cursor:ew-resize}
 .compare-view.solo{cursor:default}
+/* No modo solo, se tem zoom, o cursor vira grab (= pode arrastar pra pan). */
 .compare-view.solo.scale-zoom{cursor:grab}
+
+/* ----- LAYERS (camadas das imagens) -----
+   Duas camadas empilhadas, cada uma com sua imagem. A camada de
+   "depois" (.layer-after) fica em cima e é parcialmente clipada
+   pra revelar a "antes" embaixo na proporção definida pelo slider.
+
+   pointer-events:none nas layers e suas <img>: qualquer evento
+   atravessa elas e chega no .compare-view, que é quem trata todos
+   os gestos. Sem isso, eventos seriam roubados pelas imagens. */
 .layer{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+
+/* Posicionamento da imagem:
+   left:50%; top:50% coloca o canto superior-esquerdo no centro do
+   viewer; o transform translate(-50%,-50%) compensa, centralizando
+   a imagem pelo SEU centro.
+   transform-origin:center center garante que scale() amplia a partir
+   do centro (não do canto, que é o default).
+   max-width:none (não 100%) impede a regra global de imagens de
+   limitar — queremos a imagem em sua dimensão CSS nativa, escalada
+   por transform.
+   image-rendering:high-quality (Chrome) prioriza qualidade sobre
+   velocidade no resample do zoom. */
 .layer img{position:absolute;left:50%;top:50%;transform-origin:center center;
   user-select:none;-webkit-user-drag:none;pointer-events:none;max-width:none;
   image-rendering:high-quality}
+
+/* O TRUQUE PRINCIPAL DO SLIDER:
+   clip-path:inset(top right bottom left) recorta o elemento.
+   inset(0 0 0 X%) corta um retângulo das bordas, deixando visível
+   só a parte de X% até 100% (o lado direito).
+   --cut é setado em JS conforme o slider se move (0-100%).
+   Default 50% se a variável não existir (fallback útil). */
 .layer-after{clip-path:inset(0 0 0 var(--cut,50%))}
 
+/* ----- SOLO MODE OVERRIDES -----
+   Ativado quando .compare-view tem a classe .solo. */
 .compare-view.solo .handle{display:none}
 .compare-view.solo .badge-before{display:none}
 .compare-view.solo .badge-after{display:none}
 .compare-view.solo .solo-badge{display:flex}
+
+/* Badge único do modo solo, centralizado no topo. Mostra qual lado
+   está visível (Antes ou Depois) com indicador de cor.
+   backdrop-filter:blur(10px) usa GPU pra desfocar o que está atrás —
+   visual de "vidro fosco" que mantém o badge legível sem fundo opaco. */
 .solo-badge{display:none;position:absolute;top:14px;left:50%;transform:translateX(-50%);
   padding:5px 14px;border-radius:999px;background:rgba(8,9,12,.7);
   backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
   font-size:11px;letter-spacing:1.6px;font-weight:700;text-transform:uppercase;
   border:1px solid rgba(255,255,255,.08);pointer-events:none;z-index:4;
   align-items:center;gap:8px;color:#fff;transition:color .12s}
+
+/* Pseudo-elemento ::before vira o "ponto colorido" antes do texto.
+   transition:background suaviza a troca de cor quando alterna A/B. */
 .solo-badge:before{content:"";width:7px;height:7px;border-radius:50%;background:var(--after);
   transition:background .12s}
 .solo-badge.is-before:before{background:var(--before)}
+
+/* Os dois <span> dentro do badge — apenas um aparece por vez,
+   alternado pela classe .is-before. Mostrar/esconder via CSS é mais
+   simples que reescrever o textContent em JS. */
 .solo-badge .label-after{display:inline}
 .solo-badge .label-before{display:none}
 .solo-badge.is-before .label-after{display:none}
 .solo-badge.is-before .label-before{display:inline}
 
+/* ----- HANDLE & KNOB (alça do slider) -----
+   .handle = linha vertical absoluta movendo via left:X% via JS.
+   .handle-line = a linha branca propriamente dita (filha do handle).
+   .knob = a manopla circular no meio que o usuário arrasta.
+
+   pointer-events:none no .handle pra que cliques no resto da linha
+   passem pro viewer (não atrapalhe outros gestos), MAS pointer-events:
+   auto no .knob pra ele capturar o drag. */
 .handle{position:absolute;top:0;bottom:0;left:50%;width:2px;pointer-events:none;z-index:5}
 .handle-line{position:absolute;top:0;bottom:0;left:0;right:0;background:rgba(255,255,255,.95);
   box-shadow:0 0 0 1px rgba(0,0,0,.4),0 0 18px rgba(0,0,0,.55)}
+/* Knob centrado no meio da linha. Sombra dupla: difusa preta pra
+   profundidade, sólida fina pra contorno em fundos claros.
+   touch-action:none (de novo) — evita zoom/scroll do navegador
+   tentar competir com o drag em mobile. */
 .knob{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
   width:46px;height:46px;border-radius:50%;background:#fff;
   box-shadow:0 4px 22px rgba(0,0,0,.55),0 0 0 1px rgba(0,0,0,.2);
   display:flex;align-items:center;justify-content:center;color:#0e0f13;
   cursor:ew-resize;pointer-events:auto;touch-action:none;transition:transform var(--t-fast)}
+/* Feedback de "press" — encolhe levemente quando clicado/segurado.
+   Note que mantemos o translate(-50%,-50%) pra manter centralização. */
 .knob:active{transform:translate(-50%,-50%) scale(.96)}
 .knob svg{width:20px;height:20px}
 
+/* ----- BADGES "Antes" / "Depois" -----
+   Posicionadas nos cantos superiores do viewer. Mostram qual lado
+   é qual quando o slider está perto do meio. */
 .badge{position:absolute;top:14px;padding:5px 10px;border-radius:999px;
   background:rgba(8,9,12,.7);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
   font-size:11px;letter-spacing:1.4px;font-weight:700;text-transform:uppercase;
   border:1px solid rgba(255,255,255,.08);pointer-events:none;z-index:4;
   display:flex;align-items:center;gap:6px}
+/* Bolinha colorida indicando o canal (azul=antes, laranja=depois).
+   ::before requer content:"" pra renderizar (mesmo string vazia). */
 .badge:before{content:"";width:6px;height:6px;border-radius:50%;display:block}
 .badge-before{left:14px;color:#fff}
 .badge-before:before{background:var(--before)}
 .badge-after{right:14px;color:#fff}
 .badge-after:before{background:var(--after)}
 
+/* ==========================================================================
+   SIDE VIEW (lado a lado)
+
+   Layout simples flex row: 2 metades + 1 divisor de 1px.
+   Cada metade contém uma imagem ajustada via object-fit:contain
+   (mantém aspect ratio dentro do retângulo da metade).
+
+   No modo retrato em mobile, vira flex column (vide media queries).
+   ========================================================================== */
 .side-view{background:#050608}
 .side-half{flex:1;position:relative;display:flex;align-items:center;justify-content:center;
   overflow:hidden;min-width:0}
 .side-img-wrap{width:100%;height:100%;display:flex;align-items:center;justify-content:center;
   padding:14px}
+/* object-fit:contain encaixa a imagem dentro da caixa preservando
+   o aspect ratio. max-width/max-height 100% garante não vazar. */
 .side-img-wrap img{max-width:100%;max-height:100%;object-fit:contain;display:block;
   box-shadow:0 8px 30px rgba(0,0,0,.4)}
+/* Divisor de 1px entre as metades. flex:0 0 1px = não cresce, não
+   encolhe, sempre 1px. */
 .side-divider{flex:0 0 1px;background:var(--line)}
 
+/* ==========================================================================
+   NAV BUTTONS (setas anterior/próxima)
+
+   Botões circulares "fixos" sobre o viewer (z-index:6 acima do
+   handle e dos badges).
+   transform:translateY(-50%) compensa a posição top:50% pra
+   centralizar o botão verticalmente.
+   ========================================================================== */
 .navbtn{position:absolute;top:50%;transform:translateY(-50%);width:44px;height:44px;
   border-radius:50%;background:rgba(15,16,20,.75);border:1px solid rgba(255,255,255,.1);
   color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;
   backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
   transition:background var(--t-fast),transform var(--t-fast),opacity var(--t-fast);z-index:6;padding:0}
 .navbtn svg{width:20px;height:20px}
+/* Hover: cresce 6% (transform mantém o translateY pra não pular).
+   Esse "scale" é a reação universal de "tô interagindo". */
 .navbtn:hover{background:rgba(35,38,48,.95);transform:translateY(-50%) scale(1.06)}
 .navprev{left:12px}
 .navnext{right:12px}
 
+/* ==========================================================================
+   ZOOM PILL (controles flutuantes inferiores)
+
+   Container flutuante centrado embaixo do viewer com botões de
+   zoom in/out, label do zoom %, e botão de reset.
+
+   pointer-events:none no .overlay-bottom + auto no .zoom-pill =
+   só a pílula em si captura cliques (cliques fora dela passam
+   pro viewer pra continuar fazendo pan/cut).
+   ========================================================================== */
 .overlay-bottom{position:absolute;left:0;right:0;bottom:14px;display:flex;
   align-items:center;justify-content:center;gap:10px;pointer-events:none;z-index:6}
 .zoom-pill{display:flex;align-items:center;gap:2px;padding:4px;border-radius:999px;
@@ -249,60 +563,125 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
   border:none;color:var(--fg-2);cursor:pointer;display:flex;align-items:center;
   justify-content:center;font-size:16px;line-height:1;transition:background var(--t-fast)}
 .zoom-pill button:hover{background:var(--bg-3);color:var(--fg)}
+/* min-width:48px pra "100%" e "1000%" não causarem layout shift. */
 .zoom-pill #zoomLabel{padding:0 8px;min-width:48px;text-align:center}
 
+/* ==========================================================================
+   SIDEBAR (painel de informações)
+
+   Comportamento dual:
+     - DESKTOP (>=901px): coluna fixa de 320px à direita.
+       "Fechar" = collapsed (flex-basis:0) com transition suave.
+     - MOBILE (<901px): bottom-sheet absoluto que sobe pelo rodapé.
+       (vide bloco @media abaixo).
+
+   scrollbar customizado (Webkit + Firefox) pra não quebrar a estética
+   dark com a barra cinza-claro padrão do SO.
+   ========================================================================== */
 .sidebar{flex:0 0 320px;background:var(--bg-1);border-left:1px solid var(--line);
   overflow-y:auto;transition:flex-basis var(--t-med);scrollbar-width:thin;
   scrollbar-color:var(--bg-3) transparent;display:flex;flex-direction:column}
 .sidebar::-webkit-scrollbar{width:6px}
 .sidebar::-webkit-scrollbar-thumb{background:var(--bg-3);border-radius:3px}
+/* Estado fechado: encolhe pra 0 e remove a borda esquerda.
+   transition no flex-basis (no .sidebar) anima esse colapso. */
 .sidebar.collapsed{flex-basis:0;border-left-width:0}
+/* Pega da gaveta — invisível em desktop, aparece em mobile. */
 .sheet-handle{display:none}
 .side-content{padding:18px 18px 24px}
 .side-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;
   margin-bottom:4px}
+/* word-break:break-all pra nomes de arquivo enormes não vazarem
+   horizontalmente — quebra em qualquer caractere se preciso. */
 .side-header h2{margin:0;font-size:16px;font-weight:600;letter-spacing:.2px;
   word-break:break-all;line-height:1.3}
+/* X de fechar do bottom-sheet — invisível em desktop, aparece em mobile. */
 .side-close{background:transparent;border:none;color:var(--fg-3);cursor:pointer;
   width:30px;height:30px;border-radius:6px;font-size:22px;line-height:1;display:none;
   align-items:center;justify-content:center;flex-shrink:0;margin:-4px -4px 0 0;padding:0}
 .side-close:hover{background:var(--bg-2);color:var(--fg)}
+/* "ID 0093" em monospace pra parecer technical/data. */
 .side-id{font-size:11px;color:var(--fg-3);text-transform:uppercase;letter-spacing:1.5px;
   font-weight:600;margin-bottom:18px}
 .side-id span{color:var(--accent);font-family:ui-monospace,Consolas,monospace}
 
+/* ----- BLOCOS DE INFO (cada par de antes/depois + EXIF) -----
+   Cada .info-block é uma seção com label + linhas de chave-valor.
+   :last-child remove a borda de baixo do último bloco — evita
+   "linha solta" embaixo do último item da sidebar. */
 .info-block{margin-bottom:18px;padding-bottom:18px;border-bottom:1px solid var(--line-2)}
 .info-block:last-child{border-bottom:0;margin-bottom:0;padding-bottom:0}
+
+/* Label do bloco com bolinha colorida ao lado (azul/laranja). */
 .info-label{display:flex;align-items:center;gap:8px;font-size:11px;text-transform:uppercase;
   letter-spacing:1.4px;font-weight:700;color:var(--fg-3);margin-bottom:10px}
 .info-dot{width:8px;height:8px;border-radius:50%;display:inline-block}
 .info-dot.before{background:var(--before)}
 .info-dot.after{background:var(--after)}
+
+/* Linha de info: chave (esquerda, cinza) | valor (direita, branco).
+   align-items:flex-start = alinha pelo topo (caso o valor quebre
+   em várias linhas). word-break:break-all no valor pra nomes de
+   arquivo longos não vazarem.
+   min-width:0 no .iv permite que ele encolha (default min-width:auto
+   tornaria o flex item irredutível). */
 .info-row{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;
   padding:5px 0;font-size:12.5px}
 .info-row .ik{color:var(--fg-3);flex-shrink:0;font-weight:500}
 .info-row .iv{color:var(--fg);text-align:right;word-break:break-all;min-width:0}
 
+/* ==========================================================================
+   THUMBSTRIP (faixa de miniaturas)
+
+   Faixa horizontal scrollável no rodapé do app, mostrando todas as
+   fotos do lote. Clique numa miniatura = navega pro par.
+
+   flex:0 0 auto = não cresce/encolhe, ocupa apenas a altura natural
+   das miniaturas + padding. overflow-x:auto = scroll horizontal
+   quando há mais miniaturas que cabe na tela.
+   scroll-behavior:smooth pra que scrollIntoView() (chamado em JS
+   quando navega) anime suavemente em vez de pular instantâneo.
+   ========================================================================== */
 .thumbstrip-wrap{flex:0 0 auto;background:linear-gradient(180deg,var(--bg-1),var(--bg));
   border-top:1px solid var(--line);position:relative;display:flex;align-items:center}
 .thumbstrip{display:flex;gap:8px;padding:10px 14px;overflow-x:auto;flex:1;
   scroll-behavior:smooth;scrollbar-width:thin;scrollbar-color:var(--bg-3) transparent}
 .thumbstrip::-webkit-scrollbar{height:6px}
 .thumbstrip::-webkit-scrollbar-thumb{background:var(--bg-3);border-radius:3px}
+
+/* Cada thumbnail. Border-color transparent inicial pra a borda do
+   estado .active não mexer no layout (evita "saltinho" ao navegar). */
 .thumb{flex:0 0 auto;width:78px;height:78px;border-radius:8px;overflow:hidden;cursor:pointer;
   border:2px solid transparent;background:var(--bg-2);position:relative;
   transition:transform var(--t-fast),border-color var(--t-fast)}
+/* object-fit:cover = preenche o quadrado, cortando o que sobra (em vez
+   de "letterboxing"). Pra previews quadradas é o comportamento ideal. */
 .thumb img{width:100%;height:100%;object-fit:cover;display:block}
 .thumb:hover{transform:translateY(-2px)}
 .thumb.active{border-color:var(--accent);box-shadow:0 0 0 2px rgba(255,174,60,.2)}
+
+/* Pequena tag com o ID (4 dígitos) sobre cada thumb — label de
+   identificação rápida. Monospace pra alinhar dígitos. */
 .thumb .num{position:absolute;left:5px;top:4px;font-size:10px;font-weight:700;color:#fff;
   background:rgba(0,0,0,.55);padding:1px 5px;border-radius:4px;
   font-family:ui-monospace,Consolas,monospace}
 
+/* ==========================================================================
+   MODAL (caixa de ajuda)
+
+   Tela cheia escurecida com card central. Clique no fundo escuro
+   fecha (handler em JS verifica e.target === modal pra distinguir
+   do clique no card).
+
+   z-index:100 fica acima do app mas abaixo da upload-screen (200) e
+   loading-screen (150) — modais nunca aparecem antes do app carregar.
+   ========================================================================== */
 .modal{position:fixed;inset:0;background:rgba(5,6,8,.78);backdrop-filter:blur(8px);
   -webkit-backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;
   z-index:100;padding:20px}
 .modal[hidden]{display:none}
+/* max-height:90vh + overflow-y:auto = se o conteúdo for grande,
+   o card faz scroll interno em vez de vazar pra fora da tela. */
 .modal-card{background:var(--bg-1);border:1px solid var(--line);border-radius:var(--r-lg);
   padding:24px 26px;max-width:560px;width:100%;max-height:90vh;overflow-y:auto;
   position:relative;box-shadow:var(--shadow)}
@@ -311,12 +690,27 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
   background:transparent;border:none;color:var(--fg-3);cursor:pointer;font-size:22px;
   line-height:1;border-radius:6px;display:flex;align-items:center;justify-content:center;padding:0}
 .modal-close:hover{background:var(--bg-2);color:var(--fg)}
+
+/* Sub-headers das seções (Teclado, Mouse, Toque). */
 .kb-section{font-size:11px;text-transform:uppercase;letter-spacing:1.4px;font-weight:700;
   color:var(--fg-3);margin:18px 0 10px}
+/* Grid de 2 colunas: tecla | descrição.
+   grid-template-columns:auto 1fr = primeira coluna do tamanho do
+   conteúdo, segunda preenche o resto. align-items:center alinha
+   o texto da descrição com a tecla. */
 .kb-grid{display:grid;grid-template-columns:auto 1fr;gap:10px 16px;font-size:13px;align-items:center}
+/* Coluna ímpar = teclas (.kbd). Múltiplas teclas envolvendo wrap. */
 .kb-grid > div:nth-child(odd){display:flex;gap:4px;flex-wrap:wrap}
 .kb-grid > div:nth-child(even){color:var(--fg-2)}
 
+/* ==========================================================================
+   HINT (toast flutuante)
+
+   Mensagem temporária na parte inferior da viewer. Aparece no 1º
+   carregamento mobile pra dicar gestos ("Deslize para trocar...").
+
+   pointer-events:none = clicar atravessa o hint.
+   transition:opacity .4s = fade in/out via classe .show. */
 .hint{position:absolute;left:50%;bottom:74px;transform:translateX(-50%);
   background:rgba(15,16,20,.85);border:1px solid rgba(255,255,255,.08);border-radius:999px;
   padding:8px 14px;font-size:12px;color:var(--fg-2);
@@ -324,30 +718,61 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
   pointer-events:none;z-index:30;opacity:0;transition:opacity .4s}
 .hint.show{opacity:1}
 
+/* ==========================================================================
+   MEDIA QUERIES — adaptação responsiva
+
+   Estratégia mobile-first sem usar mobile-first: começamos com o
+   layout DESKTOP (mais rico) e usamos max-width pra reduzir/reorganizar
+   em telas menores. Funciona bem aqui porque a maioria dos elementos
+   são "shrunk versions" dos de desktop, não reorganizações totais.
+   ========================================================================== */
+
+/* Breakpoint principal: 900px.
+   Abaixo: topbar mais baixa, labels dos botões somem (só ícones),
+   sidebar vira bottom-sheet, alguns elementos ganham mais "respiro". */
 @media (max-width:900px){
   .topbar{height:50px;padding:0 12px;gap:8px}
+  /* margin auto à esquerda empurra os modes pro lado direito quando
+     sumimos com o item central — em mobile, o segmented control fica
+     antes dos action buttons, não centralizado. */
   .modes{margin-left:auto;margin-right:0}
+  /* Esconde labels textuais dos modes — só ícones. */
   .mode-btn span{display:none}
   .mode-btn{padding:7px 10px}
   .mode-btn svg{width:16px;height:16px}
   .brand .counter{display:none}
   .icon-btn{width:34px;height:34px}
+  /* Help button some em mobile (maioria dos gestos é auto-explicativo
+     via interação direta + hint inicial). */
   #btnHelp{display:none}
 
+  /* MAIN vira coluna em vez de linha — sidebar se torna bottom-sheet. */
   .main{flex-direction:column}
+  /* Sidebar mobile: posicionamento fixo, desliza de baixo pra cima.
+     transform:translateY(100%) inicial = totalmente fora da tela.
+     transform:translateY(0) (via .open) = totalmente visível.
+     Border-radius só nas bordas superiores pra parecer "papel de
+     baixo da página". max-height:72dvh deixa o usuário ver o app
+     atrás (não toma a tela toda). */
   .sidebar{position:fixed;bottom:0;left:0;right:0;top:auto;z-index:50;
     flex:none;width:100%;max-height:72dvh;border-left:none;border-top:1px solid var(--line);
     border-radius:18px 18px 0 0;transform:translateY(100%);
     box-shadow:0 -10px 40px rgba(0,0,0,.5);transition:transform var(--t-med)}
   .sidebar.open{transform:translateY(0)}
+  /* Pega visual da gaveta (a "pílulazinha" no topo do bottom-sheet,
+     sinalizando que pode arrastar). */
   .sheet-handle{display:block;width:42px;height:4px;background:var(--fg-4);
     border-radius:2px;margin:8px auto 4px;opacity:.6;flex-shrink:0}
+  /* X de fechar agora aparece (era invisível em desktop). */
   .side-close{display:flex}
   .side-content{padding:10px 18px 28px}
 
+  /* Botões de navegação ligeiramente menores pra não cobrir a foto. */
   .navbtn{width:38px;height:38px}
   .navprev{left:8px}
   .navnext{right:8px}
+  /* Knob menor — touch targets ainda atingem ~44px com a área que
+     o pointerdown captura via pointer-events. */
   .knob{width:42px;height:42px}
   .badge{font-size:10px;padding:4px 8px;letter-spacing:1.2px}
   .thumb{width:62px;height:62px}
@@ -356,10 +781,17 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
   .upload-card{padding:32px 24px}
   .upload-card h1{font-size:19px}
 }
+
+/* Em retrato no mobile, side-by-side fica horrível em 2 colunas
+   (cada metade vira um sliver vertical). Empilha verticalmente. */
 @media (max-width:900px) and (orientation:portrait){
   .side-view{flex-direction:column}
+  /* Divisor vira linha horizontal de 1px. */
   .side-divider{flex:0 0 1px;width:100%;height:1px;background:var(--line)}
 }
+
+/* Telas muito pequenas (smartphones em portrait estreito): aperta
+   mais pra evitar quebra do topbar. */
 @media (max-width:480px){
   .topbar{padding:0 10px;gap:6px}
   .brand h1{font-size:13px}
@@ -368,6 +800,21 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
   .icon-btn{width:32px;height:32px}
   .icon-btn svg{width:15px;height:15px}
 }
+
+/* ==========================================================================
+   UI HIDDEN (modo "imagem em foco")
+
+   Em mobile, um toque simples no viewer alterna .ui-hidden no .app.
+   Quando ativo, todos os elementos de chrome (topbar, strip, botões,
+   badges) ficam transparentes e não-clicáveis — sobra só a imagem.
+
+   Útil pra "respirar" e ver a foto sem distrações na tela pequena.
+   Outro toque restaura.
+
+   pointer-events:none enquanto invisível impede cliques fantasmas
+   nos botões "transparentes" (sem isso, o usuário poderia disparar
+   ações por engano).
+   ========================================================================== */
 .app.ui-hidden .topbar,.app.ui-hidden .thumbstrip-wrap,
 .app.ui-hidden .navbtn,.app.ui-hidden .overlay-bottom,
 .app.ui-hidden .badge,.app.ui-hidden .solo-badge{opacity:0;pointer-events:none;
@@ -376,18 +823,55 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
 </head>
 <body>
 
-<!-- ============ UPLOAD SCREEN ============ -->
+<!--
+  ====================================================================
+  UPLOAD SCREEN
+
+  Tela inicial. Cobre toda a viewport (z-index:200). Ela é a
+  "porta de entrada" do app: o usuário precisa selecionar/arrastar
+  imagens antes que qualquer outra coisa aconteça.
+
+  Ela é REMOVIDA via [hidden] após o upload bem-sucedido (em vez
+  de display:none direto, pra ser semântica e acessível).
+  ====================================================================
+-->
 <div class="upload-screen" id="uploadScreen">
   <div class="upload-card" id="uploadCard">
+    <!-- Logo decorativa: 2 círculos sobrepostos, "antes"+"depois". -->
     <div class="upload-logo"><span class="dot"></span><span class="dot"></span></div>
+
+    <!-- Headline. <em> sem itálico (CSS sobrescreve) só pra colorir
+         "Antes / Depois" com a cor de accent — nesta versão do tool
+         o título da landing mantém a referência ao caso de uso mais
+         comum, mas o app é genérico (vide README). -->
     <h1>Comparador <em>Antes / Depois</em></h1>
+
+    <!-- Subtítulo + reasseguro de privacidade (palavra "navegador" em
+         negrito pra reforçar o ponto). -->
     <p>Selecione ou solte aqui os arquivos. As fotos ficam <b>apenas no seu navegador</b> — nada é enviado pra nenhum servidor.</p>
+
+    <!-- BOTÃO DE UPLOAD:
+         Truque clássico: o <input type="file"> fica escondido com
+         display:none e o <label> envolvendo ele captura cliques.
+         Clicar no label dispara o input — funciona em todos browsers
+         e é 100% acessível (sem JS por trás).
+         multiple = permite selecionar vários arquivos no diálogo.
+         accept="image/*" filtra o file picker pra mostrar só imagens. -->
     <label class="upload-btn">
+      <!-- Ícone de upload: nuvem-com-seta inline-SVG (zero kb extra). -->
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
       Selecionar fotos
       <input type="file" id="fileInput" multiple accept="image/*" style="display:none">
     </label>
+
+    <!-- Caixa de erro — só aparece quando JS chama showError().
+         O atributo `hidden` esconde via CSS [hidden]{display:none}. -->
     <div class="upload-error" id="uploadError" hidden></div>
+
+    <!-- Regras de pareamento — explicação inline pra reduzir surpresa
+         do usuário ao fazer upload de arquivos com nomes que não
+         seguem o padrão (sem isso, ele apenas veria "Nenhum par
+         detectado" sem entender por quê). -->
     <div class="upload-rules">
       <b>Como pareia:</b>
       <ul>
@@ -396,6 +880,10 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
         <li>Ex: <code>IMG_0093.jpg</code> + <code>IMG_0093_edited.jpg</code> &nbsp;ou&nbsp; <code>edited_IMG_0093.jpg</code>.</li>
       </ul>
     </div>
+
+    <!-- Reaffirmação final de privacidade com ícone de cadeado.
+         Importante porque até com o disclaimer em cima, alguns
+         usuários "leem em diagonal" e ficam inseguros. -->
     <div class="upload-priv">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
       Processado 100% no seu navegador. Tudo é descartado quando você fechar.
@@ -403,71 +891,164 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
   </div>
 </div>
 
-<!-- ============ LOADING SCREEN ============ -->
+<!--
+  ====================================================================
+  LOADING SCREEN
+
+  Aparece DEPOIS da upload-screen sumir e ANTES do app virar visível.
+  Mostra um spinner + texto descritivo + barra de progresso enquanto
+  o JavaScript:
+    1. Carrega cada imagem via Image() pra obter dimensões nativas
+    2. Gera thumbnail miniaturizado via canvas
+    3. Lê EXIF dos JPEGs (parsing do cabeçalho TIFF)
+
+  Esse processamento é sequencial (par a par) pra:
+    a) dar feedback visual contínuo (a barra avança a cada par)
+    b) não saturar o decoder com 50+ imagens em paralelo
+
+  z-index:150 < 200 da upload, > 10 da topbar.
+  ====================================================================
+-->
 <div class="loading-screen" id="loadingScreen" hidden>
   <div class="spinner"></div>
   <div class="loading-text" id="loadingText">Carregando…</div>
+  <!-- Barra de progresso. JS atualiza style.width="X%" a cada par. -->
   <div class="loading-bar"><div class="loading-bar-fill" id="loadingFill"></div></div>
 </div>
 
-<!-- ============ APP ============ -->
+<!--
+  ====================================================================
+  APP — container principal do comparador
+
+  Inicia com classe `is-empty` (visibility:hidden via CSS) — só
+  fica visível quando o JS chama startApp() e remove essa classe.
+  Isso evita "flash" de UI vazia/desconfigurada antes dos dados.
+  ====================================================================
+-->
 <div class="app is-empty" id="app">
 
+<!-- =================== TOPBAR =================== -->
 <header class="topbar">
+  <!-- Bloco esquerdo: logo + título + contador "X/N" -->
   <div class="brand">
     <div class="logo"><span class="dot dot-b"></span><span class="dot dot-a"></span></div>
     <div class="brand-text">
       <h1>Antes <span class="sep">/</span> <em>Depois</em></h1>
+      <!-- counterText é atualizado em JS: "1 / 21" etc. -->
       <span class="counter" id="counterText">— / —</span>
     </div>
   </div>
 
+  <!--
+    NAV de modos: segmented control com 3 opções.
+    role="tablist" + aria-label tornam o widget anunciável por
+    screen readers como "tab list: Modo de visualização".
+    data-mode = atributo lido pelo JS pra saber qual modo ativar
+    quando clicado (evita switch/case por id).
+    title="..." aparece como tooltip no hover.
+  -->
   <nav class="modes" role="tablist" aria-label="Modo de visualização">
+    <!-- Modo SLIDER: alça arrastável dividindo as duas imagens.
+         Ícone: linha vertical com setas pra esquerda/direita. -->
     <button class="mode-btn active" data-mode="compare" title="Slider (S)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18"/><path d="M5 8 2 12l3 4"/><path d="M19 8l3 4-3 4"/></svg>
       <span>Slider</span>
     </button>
+    <!-- Modo LADO A LADO: dois retângulos paralelos. -->
     <button class="mode-btn" data-mode="side" title="Lado a Lado (S)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="8" height="16" rx="1"/><rect x="13" y="4" width="8" height="16" rx="1"/></svg>
       <span>Lado a Lado</span>
     </button>
+    <!-- Modo SOLO: ícone de olho. Comporta-se como "preview" — uma
+         imagem por vez, com flip via Espaço/clique-segurando. -->
     <button class="mode-btn" data-mode="solo" title="Solo — segure Espaço para alternar (S)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
       <span>Solo</span>
     </button>
   </nav>
 
+  <!-- Botões de ação à direita. SVG inline é mais leve que ícones
+       de fonte (zero requests, zero FOIT). aria-label complementa
+       title pra acessibilidade quando o ícone não tem texto. -->
   <div class="actions">
+    <!-- Recarregar lote: descarta os atuais (revoga Object URLs) e
+         volta pra tela de upload. -->
     <button class="icon-btn" id="btnReload" title="Carregar outras fotos" aria-label="Recarregar">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><polyline points="21 3 21 8 16 8"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><polyline points="3 21 3 16 8 16"/></svg>
     </button>
+    <!-- Toggle do painel de informações (sidebar/bottom-sheet). -->
     <button class="icon-btn" id="btnInfo" title="Informações (I)" aria-label="Informações">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
     </button>
+    <!-- Tela cheia (Fullscreen API). -->
     <button class="icon-btn" id="btnFs" title="Tela cheia (F)" aria-label="Tela cheia">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
     </button>
+    <!-- Modal de ajuda com a tabela completa de atalhos/gestos. -->
     <button class="icon-btn" id="btnHelp" title="Ajuda (?)" aria-label="Ajuda">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
     </button>
   </div>
 </header>
 
+<!--
+  =================== MAIN ===================
+  Container do conteúdo principal: STAGE (viewer) + SIDEBAR (info).
+
+  Estrutura:
+    .main (flex row)
+    ├── .stage (flex:1 — toda a área de imagem)
+    │   ├── .view.compare-view (slider + solo modes)
+    │   ├── .view.side-view (lado a lado)
+    │   └── controles flutuantes (nav, zoom-pill, hint)
+    └── aside.sidebar (320px desktop / bottom-sheet mobile)
+-->
 <div class="main">
   <section class="stage">
+    <!--
+      VIEW 1: COMPARE (slider) e SOLO
+
+      Este mesmo viewer é usado nos dois modos:
+        - 'compare': handle visível, --cut animado
+        - 'solo': handle escondido (.solo classe), --cut em 0 ou 100
+
+      A transformação é via CSS transform sincronizado em ambas
+      as <img>. clip-path:inset() na layer-after revela a layer-before
+      embaixo conforme o slider se move.
+    -->
     <div class="view compare-view active" id="compareView">
+      <!-- Camada do "antes": embaixo, sempre 100% visível. -->
       <div class="layer layer-before"><img id="imgB" alt=""></div>
+      <!-- Camada do "depois": em cima, clipada por --cut. -->
       <div class="layer layer-after"><img id="imgA" alt=""></div>
+      <!-- Badges fixos nos cantos superiores (modo compare). -->
       <div class="badge badge-before">Antes</div>
       <div class="badge badge-after">Depois</div>
+      <!-- Badge único do modo solo (centralizado, alterna A/B label).
+           Os dois <span> são exibidos alternadamente via CSS
+           dependendo da classe .is-before. -->
       <div class="solo-badge" id="soloBadge"><span class="label-after">Depois</span><span class="label-before">Antes</span></div>
+      <!-- Alça do slider: linha vertical + knob arrastável.
+           position via CSS variable (left:var(--cut)) atualizada em JS. -->
       <div class="handle" id="handle">
         <div class="handle-line"></div>
         <div class="knob" id="knob" aria-label="Mover slider">
+          <!-- Ícone de "expandir horizontal" — 2 setas apontando pra
+               fora simbolizando que o knob se move pra os dois lados. -->
           <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8.5 5.5 3 12l5.5 6.5V14h7v4.5L21 12l-5.5-6.5V10h-7V5.5z"/></svg>
         </div>
       </div>
     </div>
+    <!--
+      VIEW 2: SIDE BY SIDE
+
+      Estrutura simples flex row: 2 metades + divisor de 1px.
+      Cada <img> tem object-fit:contain pra preservar aspect ratio
+      dentro do retângulo da metade.
+      Não há zoom/pan neste modo — é só uma visão "overview" das
+      duas imagens completas. Pra inspecionar detalhes, o usuário
+      muda pro modo Slider.
+    -->
     <div class="view side-view" id="sideView">
       <div class="side-half side-before">
         <div class="side-img-wrap"><img id="sideImgB" alt=""></div>
@@ -480,6 +1061,11 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
       </div>
     </div>
 
+    <!--
+      Botões de navegação (anterior/próxima). Position absolute
+      sobre a stage, centralizados verticalmente. SVGs polyline
+      desenhando "<" e ">".
+    -->
     <button class="navbtn navprev" id="prevBtn" aria-label="Anterior">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
     </button>
@@ -487,41 +1073,73 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
     </button>
 
+    <!--
+      Overlay inferior: zoom pill flutuante centralizado.
+      Container .overlay-bottom tem pointer-events:none pra cliques
+      em "área vazia" passem pro viewer; só o .zoom-pill recapture
+      pointer-events.
+    -->
     <div class="overlay-bottom">
       <div class="zoom-pill" id="zoomPill">
+        <!-- Caractere "−" (U+2212 Minus Sign), não "-" hyphen — visual
+             mais largo e centralizado, casa melhor com "+". -->
         <button id="zoomOut" aria-label="Zoom out">−</button>
         <span id="zoomLabel">100%</span>
         <button id="zoomIn" aria-label="Zoom in">+</button>
         <button id="zoomReset" aria-label="Resetar" title="Resetar (0)">
+          <!-- Ícone de seta circular = "reset/refresh". -->
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
         </button>
       </div>
     </div>
 
+    <!-- Hint (toast) — texto preenchido em JS via showHint(). -->
     <div class="hint" id="hint"></div>
   </section>
 
+  <!--
+    SIDEBAR — painel de informações.
+
+    Em desktop: coluna fixa de 320px à direita (collapsable).
+    Em mobile: bottom-sheet absoluto que sobe pelo rodapé (open class).
+
+    aside é semântico pra "conteúdo relacionado mas separado" — bom
+    pra acessibilidade.
+  -->
   <aside class="sidebar" id="sidebar">
+    <!-- Pega da gaveta (visível só em mobile via media query). -->
     <div class="sheet-handle"></div>
     <div class="side-content">
       <div class="side-header">
+        <!-- Título: nome do arquivo "antes". Atualizado em JS por load(). -->
         <h2 id="pairTitle">—</h2>
+        <!-- X de fechar (visível só em mobile). -->
         <button class="side-close" id="sidebarClose" aria-label="Fechar painel">×</button>
       </div>
+      <!-- Subtítulo: "ID 0093". Cor de accent no <span> pra destaque. -->
       <div class="side-id">ID <span id="pairId">—</span></div>
 
+      <!-- Bloco "Antes": nome, dimensões, tamanho. Bolinha azul. -->
       <div class="info-block">
         <div class="info-label"><span class="info-dot before"></span>Antes</div>
         <div class="info-row"><span class="ik">Arquivo</span><span class="iv mono" id="iB-name">—</span></div>
         <div class="info-row"><span class="ik">Dimensões</span><span class="iv mono" id="iB-dim">—</span></div>
         <div class="info-row"><span class="ik">Tamanho</span><span class="iv mono" id="iB-size">—</span></div>
       </div>
+      <!-- Bloco "Depois": idem, bolinha laranja. -->
       <div class="info-block">
         <div class="info-label"><span class="info-dot after"></span>Depois</div>
         <div class="info-row"><span class="ik">Arquivo</span><span class="iv mono" id="iA-name">—</span></div>
         <div class="info-row"><span class="ik">Dimensões</span><span class="iv mono" id="iA-dim">—</span></div>
         <div class="info-row"><span class="ik">Tamanho</span><span class="iv mono" id="iA-size">—</span></div>
       </div>
+      <!--
+        Bloco EXIF "Captura": dados de quando/como a foto foi tirada.
+        Cada linha tem data-k="..." mapeando pra propriedade do
+        objeto exif do par. JS esconde linhas sem valor (display:none)
+        e esconde o bloco inteiro se NENHUMA linha tem valor —
+        evita seção vazia em PNG/WebP (que não têm EXIF).
+      -->
       <div class="info-block exif" id="exifBlock">
         <div class="info-label">Captura</div>
         <div class="info-row" data-k="date"><span class="ik">Data</span><span class="iv mono">—</span></div>
@@ -536,14 +1154,40 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
   </aside>
 </div>
 
+<!--
+  =================== THUMBSTRIP ===================
+  Faixa horizontal de miniaturas no rodapé. Construída dinamicamente
+  por JS (buildStrip) — começa vazia. Cada thumb é clicável e leva
+  ao par correspondente.
+
+  <footer> semântico (rodapé do app, não da página inteira).
+-->
 <footer class="thumbstrip-wrap">
   <div class="thumbstrip" id="strip"></div>
 </footer>
 
+<!--
+  =================== MODAL DE AJUDA ===================
+  Sobreposição com lista completa de atalhos/gestos.
+
+  Disparado por:
+    - clique no botão "?" da topbar
+    - tecla "?" do teclado
+    - tecla F1 (não, removido pra não conflitar com Help do browser)
+
+  Fechamento por:
+    - X
+    - clique fora do .modal-card
+    - Esc
+
+  hidden inicial = começa fechado.
+-->
 <div class="modal" id="helpModal" hidden>
   <div class="modal-card">
     <button class="modal-close" id="helpClose" aria-label="Fechar">×</button>
     <h3>Atalhos & Gestos</h3>
+
+    <!-- Seção 1: TECLADO -->
     <div class="kb-section">Teclado</div>
     <div class="kb-grid">
       <div><kbd>←</kbd><kbd>→</kbd></div><div>Navegar entre fotos</div>
@@ -556,6 +1200,8 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
       <div><kbd>S</kbd></div><div>Trocar de modo</div>
       <div><kbd>?</kbd></div><div>Esta ajuda</div>
     </div>
+
+    <!-- Seção 2: MOUSE -->
     <div class="kb-section">Mouse</div>
     <div class="kb-grid">
       <div>Roda</div><div>Zoom (ancorado ao cursor)</div>
@@ -564,6 +1210,8 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
       <div>Duplo clique no knob</div><div>Slider volta ao centro (50%)</div>
       <div>Duplo clique</div><div>Resetar zoom</div>
     </div>
+
+    <!-- Seção 3: TOQUE (mobile/tablet) -->
     <div class="kb-section">Toque</div>
     <div class="kb-grid">
       <div>Pinça</div><div>Zoom</div>
@@ -574,7 +1222,10 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
   </div>
 </div>
 
-</div>
+</div><!-- /.app -->
+<!-- ====================================================================
+     FIM DO HTML — daqui pra baixo é o <script> com toda a lógica.
+     ==================================================================== -->
 
 <script>
 /* ============================================================================
