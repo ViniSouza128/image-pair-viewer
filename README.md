@@ -10,18 +10,27 @@ dispositivo.
 
 ## Pareamento
 
-Procura **4 dígitos consecutivos depois de um `_`** no nome do
-arquivo. Esse número é o ID do par. Dentro do par, o nome **mais
-curto** vira `before`, o mais longo vira `after` (assume que edits
-acrescentam prefixo ou sufixo).
+Extrai **todos os runs de 4+ dígitos consecutivos** do nome do
+arquivo e usa-os como ID composto. Funciona com convenções de
+diversas marcas/épocas:
 
-| Arquivo                 | ID    | Papel  |
-|-------------------------|-------|--------|
-| `IMG_0093.jpg`          | 0093  | before |
-| `IMG_0093_edited.jpg`   | 0093  | after  |
-| `edited_IMG_0093.jpg`   | 0093  | after  |
-| `GAB_0074.jpg`          | 0074  | before |
-| `GAB_0074_v2.jpg`       | 0074  | after  |
+| Convenção                       | Exemplo                          | ID extraído         |
+|---------------------------------|----------------------------------|---------------------|
+| Canon / iPhone                  | `IMG_0093.jpg`                   | `0093`              |
+| Sony Alpha                      | `DSC04321.JPG`                   | `04321`             |
+| Nikon                           | `DSC_05123.JPG`                  | `05123`             |
+| Fujifilm                        | `DSCF_4567.JPG`                  | `4567`              |
+| Panasonic Lumix                 | `P1010234.jpg`                   | `1010234`           |
+| Android (data+hora)             | `IMG_20240115_143025.jpg`        | `20240115-143025`   |
+| Google Pixel                    | `PXL_20240115_143025.jpg`        | `20240115-143025`   |
+| DJI                             | `DJI_0123.JPG`                   | `0123`              |
+| GoPro                           | `GOPR0001.JPG`                   | `0001`              |
+
+Dentro de cada grupo (mesmo ID), o nome **mais curto** vira `before`
+e o mais longo vira `after` (assume que edits adicionam prefixo ou
+sufixo). Marcadores de versão curtos como `_v2` ou `_v10` são
+ignorados pelo parser, então `IMG_0093.jpg` paréia corretamente com
+`IMG_0093_v10.jpg`.
 
 Pares incompletos (1 só arquivo com aquele ID) são ignorados.
 
@@ -62,6 +71,23 @@ Pares incompletos (1 só arquivo com aquele ID) são ignorados.
 Para cada lado do par: nome, dimensões, tamanho. Para JPEGs, lê
 EXIF (data, câmera, lente, ISO, abertura, obturador, focal) via
 parser próprio.
+
+## Exportação
+
+Botão na topbar (ícone de download) abre menu com duas opções:
+
+- **Galeria offline (todas)** — gera um HTML único contendo todos
+  os pares carregados, com o mesmo comparador embutido. Útil pra
+  arquivar ou abrir em outra máquina sem refazer o upload.
+- **Comparador desta foto** — gera um HTML pequeno só com o par
+  atualmente exibido, ideal pra mandar pra alguém via mensagem ou
+  email.
+
+Em ambos os casos, as imagens são re-encodadas em JPEG comprimido
+(máx 2000 px, qualidade 82) embutidas como data URLs. O HTML
+resultante é totalmente standalone — abre direto pelo `file://`
+e funciona com todos os recursos do app live (slider, lado a lado,
+solo, zoom, EXIF, atalhos).
 
 ## Hospedagem
 

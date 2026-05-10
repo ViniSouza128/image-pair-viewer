@@ -218,20 +218,11 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
   text-decoration-color:var(--fg-4);text-underline-offset:2px}
 .upload-secondary:hover{color:var(--fg-2)}
 
-/* Caixa de regras explicando o pareamento — visualmente separada
-   por divisor superior pra não competir com o CTA. */
-.upload-rules{margin-top:24px;padding-top:20px;border-top:1px solid var(--line-2);
-  text-align:left;font-size:12px;color:var(--fg-3);line-height:1.6}
-.upload-rules b{color:var(--fg-2);font-weight:600}
-.upload-rules code{background:var(--bg-2);padding:1px 6px;border-radius:4px;
-  font-family:ui-monospace,Consolas,monospace;color:var(--fg-2);font-size:11px}
-.upload-rules ul{margin:6px 0 0 0;padding-left:18px}
-.upload-rules li{margin:3px 0}
-
 /* Linha de "privacidade" com ícone de cadeado — texto pequeno e cinza
-   pra ser presente sem dominar visualmente. */
-.upload-priv{margin-top:18px;font-size:11px;color:var(--fg-4);display:flex;align-items:center;
-  gap:6px;justify-content:center}
+   pra ser presente sem dominar visualmente. margin-top maior agora
+   que o bloco de regras foi removido. */
+.upload-priv{margin-top:28px;font-size:11px;color:var(--fg-4);display:flex;align-items:center;
+  gap:6px;justify-content:center;line-height:1.5;max-width:380px;margin-left:auto;margin-right:auto}
 .upload-priv svg{width:13px;height:13px;flex-shrink:0}
 
 /* Caixa de erro — só aparece se o JS chamar showError().
@@ -344,6 +335,33 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
 .icon-btn svg{width:16px;height:16px}
 .icon-btn:hover{background:var(--bg-2);color:var(--fg);border-color:var(--line)}
 .icon-btn.active{background:var(--bg-3);color:var(--accent);border-color:var(--line)}
+
+/* ==========================================================================
+   MENU DROPDOWN (usado pelo botão de exportação)
+
+   Aparece logo abaixo do botão âncora. JS controla a visibilidade
+   adicionando/removendo o atributo `hidden`. Posicionado relativo
+   ao container .actions (que tem position:relative implícito? Não
+   — precisamos garantir via CSS).
+
+   z-index:30 acima do hint, abaixo da sidebar mobile.
+   ========================================================================== */
+.actions{position:relative} /* âncora pra .menu posicionar */
+.menu{position:absolute;top:calc(100% + 4px);right:0;background:var(--bg-1);
+  border:1px solid var(--line);border-radius:10px;min-width:240px;padding:4px;
+  box-shadow:var(--shadow);z-index:30;animation:menu-in .14s ease}
+.menu[hidden]{display:none}
+@keyframes menu-in{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+.menu button{width:100%;padding:9px 12px;background:transparent;border:none;
+  color:var(--fg);text-align:left;cursor:pointer;border-radius:7px;display:flex;
+  align-items:flex-start;gap:10px;font-size:13px;font-family:inherit;line-height:1.35;
+  transition:background var(--t-fast)}
+.menu button:hover{background:var(--bg-2)}
+.menu button:disabled{opacity:.45;cursor:not-allowed}
+.menu button:disabled:hover{background:transparent}
+.menu button svg{width:15px;height:15px;flex-shrink:0;margin-top:1px;color:var(--fg-3)}
+.menu .item-title{display:block;color:var(--fg);font-weight:500}
+.menu .item-sub{display:block;color:var(--fg-3);font-size:11px;margin-top:2px}
 
 /* ==========================================================================
    MAIN — área central + sidebar
@@ -840,15 +858,15 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
     <!-- Logo decorativa: 2 círculos sobrepostos, "antes"+"depois". -->
     <div class="upload-logo"><span class="dot"></span><span class="dot"></span></div>
 
-    <!-- Headline. <em> sem itálico (CSS sobrescreve) só pra colorir
-         "Antes / Depois" com a cor de accent — nesta versão do tool
-         o título da landing mantém a referência ao caso de uso mais
-         comum, mas o app é genérico (vide README). -->
-    <h1>Comparador <em>Antes / Depois</em></h1>
+    <!-- Headline neutra. <em> sem itálico (CSS sobrescreve) só pra
+         colorir o nome do tool com a cor de accent. -->
+    <h1>image-<em>pair-viewer</em></h1>
 
-    <!-- Subtítulo + reasseguro de privacidade (palavra "navegador" em
-         negrito pra reforçar o ponto). -->
-    <p>Selecione ou solte aqui os arquivos. As fotos ficam <b>apenas no seu navegador</b> — nada é enviado pra nenhum servidor.</p>
+    <!-- Instrução curta e direta:
+         o usuário envia o LOTE INTEIRO (originais + versões editadas
+         juntos) e o programa cuida de identificar os pares
+         automaticamente pelos nomes. -->
+    <p>Envie o conjunto de fotos — originais e versões editadas, todas juntas. Os pares são identificados automaticamente pelo nome dos arquivos.</p>
 
     <!-- BOTÃO DE UPLOAD:
          Truque clássico: o <input type="file"> fica escondido com
@@ -868,25 +886,12 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
          O atributo `hidden` esconde via CSS [hidden]{display:none}. -->
     <div class="upload-error" id="uploadError" hidden></div>
 
-    <!-- Regras de pareamento — explicação inline pra reduzir surpresa
-         do usuário ao fazer upload de arquivos com nomes que não
-         seguem o padrão (sem isso, ele apenas veria "Nenhum par
-         detectado" sem entender por quê). -->
-    <div class="upload-rules">
-      <b>Como pareia:</b>
-      <ul>
-        <li>Pareia pelos <b>4 dígitos consecutivos depois de um <code>_</code></b> (ex.: <code>IMG_<b>0093</b></code>, <code>GAB_<b>0074</b></code>).</li>
-        <li>Em cada par, o nome <b>mais curto</b> é o "Antes"; o mais longo (com sufixo/prefixo extra) é o "Depois".</li>
-        <li>Ex: <code>IMG_0093.jpg</code> + <code>IMG_0093_edited.jpg</code> &nbsp;ou&nbsp; <code>edited_IMG_0093.jpg</code>.</li>
-      </ul>
-    </div>
-
-    <!-- Reaffirmação final de privacidade com ícone de cadeado.
-         Importante porque até com o disclaimer em cima, alguns
-         usuários "leem em diagonal" e ficam inseguros. -->
+    <!-- Reasseguro de privacidade com ícone de cadeado. Mantido por
+         ser o ponto crítico que tira o medo do usuário arrastar
+         fotos pessoais. -->
     <div class="upload-priv">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-      Processado 100% no seu navegador. Tudo é descartado quando você fechar.
+      Processado 100% no seu navegador. Nada é enviado a nenhum servidor — tudo é descartado quando você fechar a aba.
     </div>
   </div>
 </div>
@@ -976,6 +981,29 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
     <button class="icon-btn" id="btnReload" title="Carregar outras fotos" aria-label="Recarregar">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><polyline points="21 3 21 8 16 8"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><polyline points="3 21 3 16 8 16"/></svg>
     </button>
+    <!-- Exportar: gera um HTML standalone com as fotos embutidas
+         (galeria offline completa OU só o par atual pra compartilhar). -->
+    <button class="icon-btn" id="btnExport" title="Exportar HTML" aria-label="Exportar" aria-haspopup="menu" aria-expanded="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    </button>
+    <!-- Menu dropdown da exportação (anchored ao botão acima).
+         Inicia com hidden; JS abre/fecha via toggle do atributo. -->
+    <div class="menu" id="exportMenu" role="menu" hidden>
+      <button id="exportAll" role="menuitem">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        <span>
+          <span class="item-title">Galeria offline (todas)</span>
+          <span class="item-sub">HTML único com todos os pares carregados</span>
+        </span>
+      </button>
+      <button id="exportOne" role="menuitem">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.5-3.5L9 20"/></svg>
+        <span>
+          <span class="item-title">Comparador desta foto</span>
+          <span class="item-sub">HTML pequeno do par atual (pra compartilhar)</span>
+        </span>
+      </button>
+    </div>
     <!-- Toggle do painel de informações (sidebar/bottom-sheet). -->
     <button class="icon-btn" id="btnInfo" title="Informações (I)" aria-label="Informações">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
@@ -1280,25 +1308,43 @@ const IMG_RE = /\.(jpe?g|png|webp|gif|bmp|avif|heic)$/i;
 /**
  * Extrai o ID de pareamento a partir do nome de arquivo.
  *
- * Regra: pega os 4 dígitos consecutivos que vêm logo depois de
- * um "_" e que NÃO fazem parte de um número maior. O lookahead
- * (?=_|$) garante que o próximo caractere é underscore ou fim
- * do nome (sem extensão), evitando casar dentro de "00935".
+ * Regra: pega TODOS os runs de 4 ou mais dígitos consecutivos no
+ * nome (sem extensão) e junta com '-' como ID composto. Isso cobre
+ * uma ampla variedade de convenções de câmera:
  *
- * Exemplos:
- *   "IMG_0093.jpg"          -> "0093"
- *   "edited_IMG_0093.jpg"   -> "0093"
- *   "GAB_0074_v2.jpg"       -> "0074"
- *   "DSC00935.jpg"          -> null (não tem _ antes)
+ *   IMG_0093.jpg            -> "0093"           (Canon, iPhone)
+ *   IMG_0093_edited.jpg     -> "0093"           (suffix sem dígitos)
+ *   IMG_0093_v2.jpg         -> "0093"           ("2" descartado, <4 dígitos)
+ *   IMG_0093_v10.jpg        -> "0093"           ("10" descartado, <4 dígitos)
+ *   edited_IMG_0093.jpg     -> "0093"           (prefix arbitrário)
+ *   DSC04321.JPG            -> "04321"          (Sony Alpha — sem _)
+ *   DSC_05123.JPG           -> "05123"          (Nikon)
+ *   DSCF_4567.JPG           -> "4567"           (Fujifilm)
+ *   P1010234.jpg            -> "1010234"        (Panasonic Lumix — sem _)
+ *   IMG_20240115_143025.jpg -> "20240115-143025" (Android — date+time)
+ *   PXL_20240115_143025.jpg -> "20240115-143025" (Google Pixel)
+ *   DJI_0123.JPG            -> "0123"           (DJI drones)
+ *   GOPR0001.JPG            -> "0001"           (GoPro)
+ *
+ * Por que o threshold de ≥4 dígitos? Cobre toda câmera digital que
+ * pesquisei (sem entrar em câmeras dos anos 90), e descarta números
+ * curtos que tipicamente são marcadores de versão de edit
+ * (_v2, _v10, _01, etc.). Isso permite que `IMG_0093.jpg` paree
+ * corretamente com `IMG_0093_v10_edit.jpg`.
+ *
+ * Por que juntar com '-'? Pra que padrões Android (data+hora) ainda
+ * formem uma chave única identificando aquele momento exato.
  *
  * @param {string} name  Nome do arquivo com extensão.
- * @returns {string|null} ID de 4 dígitos, ou null se não casar.
+ * @returns {string|null} ID composto, ou null se não casar.
  */
 function parseId(name){
   // Remove a extensão pra não confundir com a regex.
   const stem = name.replace(/\.[^.]+$/, '');
-  const m = stem.match(/_(\d{4})(?=_|$)/);
-  return m ? m[1] : null;
+  // \d{4,} = 4 ou mais dígitos consecutivos. Flag /g pra capturar
+  // todas as ocorrências (não só a primeira).
+  const runs = stem.match(/\d{4,}/g) || [];
+  return runs.length ? runs.join('-') : null;
 }
 
 /**
@@ -1684,35 +1730,41 @@ async function handleFiles(fileList){
 }
 
 /* ---------------------------------------------------------------------------
-   Input + drag-and-drop (fonte de arquivos pra handleFiles).
+   bindUploadUI() — registra os listeners de input/drag-drop.
+
+   Encapsulado em função pra que possa ser pulado quando a página é
+   aberta em "modo galeria exportada" (window.EMBEDDED_DATA presente).
+   Nesse modo, a tela de upload não é nem mostrada — vamos direto
+   pro startApp com os dados embutidos.
    --------------------------------------------------------------------------- */
+function bindUploadUI(){
+  fileInput.addEventListener('change', e => handleFiles(e.target.files));
 
-fileInput.addEventListener('change', e => handleFiles(e.target.files));
-
-// "dragDepth" trata o problema do dragenter/dragleave disparar pra
-// cada filho ao mover sobre a árvore. A gente só remove a classe
-// is-drag quando profundidade volta a zero.
-let dragDepth = 0;
-window.addEventListener('dragenter', e => {
-  if (uploadScreen.hidden) return;
-  dragDepth++;
-  uploadScreen.classList.add('is-drag');
-});
-window.addEventListener('dragleave', e => {
-  if (uploadScreen.hidden) return;
-  dragDepth--;
-  if (dragDepth <= 0){ dragDepth = 0; uploadScreen.classList.remove('is-drag'); }
-});
-// preventDefault no dragover é OBRIGATÓRIO pro browser permitir drop.
-window.addEventListener('dragover', e => { e.preventDefault(); });
-window.addEventListener('drop', e => {
-  e.preventDefault();
-  dragDepth = 0;
-  uploadScreen.classList.remove('is-drag');
-  if (!uploadScreen.hidden && e.dataTransfer && e.dataTransfer.files){
-    handleFiles(e.dataTransfer.files);
-  }
-});
+  // "dragDepth" trata o problema do dragenter/dragleave disparar pra
+  // cada filho ao mover sobre a árvore. A gente só remove a classe
+  // is-drag quando profundidade volta a zero.
+  let dragDepth = 0;
+  window.addEventListener('dragenter', e => {
+    if (uploadScreen.hidden) return;
+    dragDepth++;
+    uploadScreen.classList.add('is-drag');
+  });
+  window.addEventListener('dragleave', e => {
+    if (uploadScreen.hidden) return;
+    dragDepth--;
+    if (dragDepth <= 0){ dragDepth = 0; uploadScreen.classList.remove('is-drag'); }
+  });
+  // preventDefault no dragover é OBRIGATÓRIO pro browser permitir drop.
+  window.addEventListener('dragover', e => { e.preventDefault(); });
+  window.addEventListener('drop', e => {
+    e.preventDefault();
+    dragDepth = 0;
+    uploadScreen.classList.remove('is-drag');
+    if (!uploadScreen.hidden && e.dataTransfer && e.dataTransfer.files){
+      handleFiles(e.dataTransfer.files);
+    }
+  });
+}
 
 /* ============================================================================
    PARTE 2 — APP COMPARADOR
@@ -2295,7 +2347,10 @@ function startApp(DATA){
         setScaleAt(scale / 1.3, r.left + r.width/2, r.top + r.height/2);
       } break;
       case '0': case 'Escape': {
-        // Se o modal de ajuda está aberto, Esc fecha ele em vez de resetar.
+        // Esc tem precedência em camadas: fecha o que estiver aberto
+        // primeiro (menu > modal > zoom reset).
+        const exMenu = $('exportMenu');
+        if (exMenu && !exMenu.hidden){ exMenu.hidden = true; break; }
         if (!helpModal.hidden){ helpModal.hidden = true; break; }
         reset();
       } break;
@@ -2363,11 +2418,284 @@ function startApp(DATA){
   [imgA, imgB, sideImgA, sideImgB].forEach(el =>
     el.addEventListener('contextmenu', e => e.preventDefault()));
 
+  /* ============================================================
+     EXPORTAÇÃO — gera HTML standalone com fotos embutidas
+
+     Dois modos:
+       1) "Galeria offline (todas)": exporta TODAS as fotos do lote
+          carregado num único HTML auto-contido. Útil pra arquivar
+          ou abrir em outra máquina sem re-uploadar.
+       2) "Comparador desta foto": exporta só o par atual num HTML
+          pequeno — pra mandar pra alguém via mensagem/email.
+
+     COMO FUNCIONA:
+       - Pega o <style> e o <script> da página atual
+       - Re-encoda cada imagem como data URL (base64) com canvas,
+         comprimindo pra max 2000px / JPEG q=82 (mantém qualidade
+         de inspeção mas evita arquivos gigantes)
+       - Constrói um documento HTML idêntico ao live, mas com:
+           * tela de upload escondida desde o load
+           * variável window.EMBEDDED_DATA com os pares já prontos
+       - Empacota tudo num Blob e dispara download
+     ============================================================ */
+
+  /**
+   * Re-encoda uma imagem (acessada via blob: URL) num data URL JPEG
+   * comprimido. Reduz pra max 2000px no maior lado.
+   *
+   * Usar canvas + toDataURL é a forma de ter base64 sem fetch
+   * (que falha em alguns contextos com blob URLs em file://).
+   *
+   * @param {string} src   Object URL ou data URL da imagem.
+   * @param {number} maxDim  Maior dimensão alvo (default 2000).
+   * @param {number} quality JPEG quality 0..1 (default 0.82).
+   * @returns {Promise<string>} data URL JPEG.
+   */
+  function reencodeImage(src, maxDim, quality){
+    maxDim = maxDim || 2000;
+    quality = quality == null ? 0.82 : quality;
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const w = img.naturalWidth, h = img.naturalHeight;
+        const s = Math.min(1, maxDim / Math.max(w, h));
+        const tw = Math.round(w * s), th = Math.round(h * s);
+        const c = document.createElement('canvas');
+        c.width = tw; c.height = th;
+        c.getContext('2d').drawImage(img, 0, 0, tw, th);
+        try { resolve(c.toDataURL('image/jpeg', quality)); }
+        catch(e){ reject(e); }
+      };
+      img.onerror = () => reject(new Error('falha lendo imagem'));
+      img.src = src;
+    });
+  }
+
+  /**
+   * Constrói o HTML standalone exportado.
+   *
+   * Estratégia: clonar o documento atual via createHTMLDocument(),
+   * limpar estado de runtime (transforms, classes ativas, conteúdo
+   * dinâmico do strip), inserir um <script> com EMBEDDED_DATA antes
+   * do <script> principal. O bootstrap (já existente) detecta a
+   * variável e pula a UI de upload.
+   *
+   * @param {Array} items   Pares já no formato compatível com DATA.
+   * @param {string} title  <title> do HTML exportado.
+   * @returns {string}      HTML completo (string).
+   */
+  function buildExportHTML(items, title){
+    // Cria um Document vazio e copia o HTML atual.
+    const doc = document.implementation.createHTMLDocument(title);
+    doc.documentElement.innerHTML = document.documentElement.innerHTML;
+
+    // Set <title>.
+    const titleEl = doc.querySelector('title');
+    if (titleEl) titleEl.textContent = title;
+
+    // ---- LIMPEZA DE ESTADO RUNTIME ----
+    // (essas mudanças ficam no clone, não afetam a página atual.)
+
+    // Remove src/style das <img> (serão definidas pelo startApp).
+    doc.querySelectorAll('#imgA, #imgB, #sideImgA, #sideImgB').forEach(img => {
+      img.removeAttribute('src');
+      img.removeAttribute('style');
+    });
+
+    // Remove inline style do layer-after (clip-path via --cut).
+    const after = doc.querySelector('.layer-after');
+    if (after) after.removeAttribute('style');
+
+    // Remove inline style do handle (left:X%).
+    const handleEl = doc.querySelector('#handle');
+    if (handleEl) handleEl.removeAttribute('style');
+
+    // Reseta classes da compare-view e side-view pro estado inicial.
+    const cv = doc.querySelector('#compareView');
+    if (cv) cv.className = 'view compare-view active';
+    const sv = doc.querySelector('#sideView');
+    if (sv) sv.className = 'view side-view';
+
+    // Reseta botões de modo (compare ativo).
+    doc.querySelectorAll('.mode-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.mode === 'compare');
+    });
+
+    // Esvazia a strip — startApp vai reconstruir com os items.
+    const strip = doc.querySelector('#strip');
+    if (strip) strip.innerHTML = '';
+
+    // Reseta classes do app pro estado is-empty (startApp tira).
+    const appEl = doc.querySelector('.app');
+    if (appEl) appEl.className = 'app is-empty';
+
+    // Esconde upload-screen e loading-screen (não fazem sentido na
+    // versão exportada — não há upload). O bootstrap ainda checa
+    // EMBEDDED_DATA e pula essas telas via lógica, mas adicionar
+    // hidden aqui é defesa em profundidade caso o JS falhe.
+    const us = doc.querySelector('#uploadScreen');
+    if (us) us.hidden = true;
+    const ls = doc.querySelector('#loadingScreen');
+    if (ls) ls.hidden = true;
+
+    // Esconde também o próprio botão de exportação na versão
+    // exportada — exportar de novo não faz sentido (é igual).
+    const btnEx = doc.querySelector('#btnExport');
+    if (btnEx) btnEx.style.display = 'none';
+    const btnRl = doc.querySelector('#btnReload');
+    if (btnRl) btnRl.style.display = 'none';
+    const exMenu = doc.querySelector('#exportMenu');
+    if (exMenu) exMenu.remove();
+
+    // ---- INJEÇÃO DE DADOS ----
+    // Insere um <script> com EMBEDDED_DATA antes do <script> principal.
+    // JSON.stringify cuida de escapes; só precisamos quebrar uma
+    // sequência "</scr"+"ipt>" literal dentro de strings (caso algum
+    // nome de arquivo contenha isso) — senão o parser HTML do
+    // browser fecharia o <script> no meio.
+    const json = JSON.stringify(items).replace(/<\/script>/gi, '<\\/script>');
+    const dataScript = doc.createElement('script');
+    dataScript.textContent = 'window.EMBEDDED_DATA = ' + json + ';';
+    const mainScript = doc.querySelector('script');
+    if (mainScript) mainScript.parentNode.insertBefore(dataScript, mainScript);
+
+    return '<!doctype html>\n' + doc.documentElement.outerHTML;
+  }
+
+  /**
+   * Dispara download de string como arquivo HTML.
+   * Usa Blob + URL.createObjectURL + <a download>.
+   */
+  function downloadHTML(html, filename){
+    const blob = new Blob([html], {type: 'text/html;charset=utf-8'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    // Revoga em delay pra dar tempo do browser começar o download.
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+  }
+
+  /**
+   * Pipeline de exportação completo. Mostra a tela de loading
+   * reciclada com progresso, processa cada par, e dispara o download.
+   *
+   * @param {Array} items     Subset de DATA pra exportar.
+   * @param {string} kind     'all' ou 'one' (afeta filename + título).
+   */
+  async function exportItems(items, kind){
+    if (!items.length) return;
+    closeExportMenu();
+    const loading = $('loadingScreen');
+    const fill = $('loadingFill');
+    const text = $('loadingText');
+    loading.hidden = false;
+    text.textContent = 'Preparando exportação…';
+    fill.style.width = '0%';
+
+    // Reduz a duração total: pares são processados em paralelo
+    // dentro de cada um (b/a juntos), mas pares são sequenciais
+    // pra reportar progresso e não estourar memória.
+    const out = [];
+    try {
+      for (let i = 0; i < items.length; i++){
+        const p = items[i];
+        text.textContent = `Processando ${i+1}/${items.length}: ${p.id}`;
+        fill.style.width = `${(i / items.length) * 100}%`;
+        const [bSrc, aSrc] = await Promise.all([
+          reencodeImage(p.b.src, 2000, 0.82),
+          reencodeImage(p.a.src, 2000, 0.82),
+        ]);
+        out.push({
+          id: p.id,
+          b: { name: p.b.name, src: bSrc, w: p.b.w, h: p.b.h, size: p.b.size },
+          a: { name: p.a.name, src: aSrc, w: p.a.w, h: p.a.h, size: p.a.size },
+          // Mantém o thumb original (já é data URL pequeno).
+          t: p.t,
+          exif: p.exif || {},
+        });
+      }
+      fill.style.width = '100%';
+      text.textContent = 'Gerando HTML…';
+
+      const title = kind === 'one'
+        ? `image-pair-viewer · ${out[0].id}`
+        : 'image-pair-viewer (galeria offline)';
+      const filename = kind === 'one'
+        ? `image-pair-${out[0].id}.html`
+        : `image-pair-gallery-${new Date().toISOString().slice(0,10)}.html`;
+
+      const html = buildExportHTML(out, title);
+      downloadHTML(html, filename);
+    } catch(err){
+      console.error('Export failed', err);
+      alert('Falha ao exportar: ' + (err.message || err));
+    } finally {
+      // Pequeno delay pra UX não piscar.
+      setTimeout(() => { loading.hidden = true; }, 400);
+    }
+  }
+
+  /* ---------- Dropdown menu (abrir/fechar) ---------- */
+  const exportBtn = $('btnExport');
+  const exportMenu = $('exportMenu');
+  function openExportMenu(){
+    if (!exportMenu) return;
+    exportMenu.hidden = false;
+    exportBtn.setAttribute('aria-expanded', 'true');
+  }
+  function closeExportMenu(){
+    if (!exportMenu) return;
+    exportMenu.hidden = true;
+    exportBtn.setAttribute('aria-expanded', 'false');
+  }
+  if (exportBtn){
+    exportBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      if (exportMenu.hidden) openExportMenu(); else closeExportMenu();
+    });
+    // Clique em qualquer lugar fora fecha o menu.
+    document.addEventListener('click', e => {
+      if (!exportMenu.hidden && !exportMenu.contains(e.target) && e.target !== exportBtn){
+        closeExportMenu();
+      }
+    });
+    // Esc fecha o menu (já temos um keydown global; integra lá embaixo).
+    $('exportAll')?.addEventListener('click', () => exportItems(DATA, 'all'));
+    $('exportOne')?.addEventListener('click', () => exportItems([DATA[current]], 'one'));
+  }
+
   /* ---------- Boot ---------- */
   applySidebar();
   load(0);
   // Hint inicial só no mobile, pra ensinar os gestos.
   if (isTouchDevice) showHint('Deslize ⇆ para trocar · Pinça para zoom', 2800);
+}
+
+/* ============================================================================
+   BOOTSTRAP — decide entre modo upload (live) ou galeria exportada.
+
+   Quando o HTML é exportado via "Galeria offline" ou "Comparador desta
+   foto", os dados ficam embutidos numa variável global window.EMBEDDED_DATA
+   adicionada ANTES deste script. Detectamos esse caso e pulamos a UI
+   de upload, indo direto pro startApp.
+
+   Em modo "live" (a página em si do GitHub Pages), EMBEDDED_DATA é
+   undefined e ligamos os listeners de upload normalmente.
+   ========================================================================== */
+if (window.EMBEDDED_DATA && Array.isArray(window.EMBEDDED_DATA) && window.EMBEDDED_DATA.length){
+  // Modo galeria exportada: esconde upload/loading e dispara o app.
+  if (uploadScreen) uploadScreen.hidden = true;
+  if (loadingScreen) loadingScreen.hidden = true;
+  // DOMContentLoaded já passou se o script tá rodando aqui (script no
+  // fim do body), mas usamos rAF pra garantir que o layout terminou.
+  requestAnimationFrame(() => startApp(window.EMBEDDED_DATA));
+} else {
+  // Modo live: liga a UI de upload e espera o usuário escolher arquivos.
+  bindUploadUI();
 }
 
 })();
