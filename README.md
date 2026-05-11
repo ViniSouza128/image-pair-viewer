@@ -175,25 +175,29 @@ no label se 2+).
 
 ## Idioma
 
-Botão na topbar (mostra a label do idioma ativo: `PT` / `EN` / `ES` /
-`FR` / `DE` / `JA`) abre um menu com 6 idiomas:
+Botão na topbar (mostra a label do idioma ativo: `EN` / `PT` / `ES` /
+`FR` / `DE` / `IT` / `JA` / `ZH`) abre um menu com 8 idiomas:
 
+- 🇺🇸 **English (EN-US)** — *default*
 - 🇧🇷 **Português (PT-BR)**
-- 🇺🇸 **English (EN-US)**
 - 🇪🇸 **Español (ES-ES)**
 - 🇫🇷 **Français (FR-FR)**
 - 🇩🇪 **Deutsch (DE-DE)**
+- 🇮🇹 **Italiano (IT-IT)**
 - 🇯🇵 **日本語 (JA-JP)**
+- 🇨🇳 **中文 (ZH-CN)**
 
-Detecção inicial: `navigator.language` → fallback EN-US. A escolha
-**não** é persistida — a cada reload o idioma volta ao do navegador.
+O default é **fixo em EN-US** — `navigator.language` é ignorado por
+design (default neutro para alcance global). Cada visita começa em
+inglês; o usuário escolhe outro idioma via dropdown se quiser. A
+escolha **não** é persistida — a cada reload volta a EN-US.
 
 O **título da aba** do navegador (`document.title`) acompanha o
-idioma — ex.: muda entre "Antes / Depois", "Before / After",
+idioma — ex.: muda entre "Before / After", "Antes / Depois",
 "Antes / Después", "Avant / Après", "Vorher / Nachher",
-"ビフォー / アフター". O **favicon** é um SVG inline com as duas
-bolinhas (azul `--before` + laranja `--after`) que formam a logo
-da marca.
+"Prima / Dopo", "ビフォー / アフター", "前 / 后". O **favicon** é um
+SVG inline com as duas bolinhas (azul `--before` + laranja `--after`)
+que formam a logo da marca.
 
 ## Exportação
 
@@ -283,6 +287,11 @@ o resizer, ciclar critério de sort, recolher os painéis), mas nada
 sobrevive ao reload. Decisão de produto: o app é uma ferramenta de
 uso pontual, não tem login, e visitantes diferentes na mesma máquina
 não devem ver o estado uns dos outros.
+
+O botão **"Recolher painéis"** (canto inferior direito do stage)
+também esconde o controle de zoom flutuante (`overlay-bottom`)
+junto com topbar/sidebar/strip — view 100% limpa para revisão
+focada. Clicar de novo traz tudo de volta.
 
 ## Hospedagem
 
