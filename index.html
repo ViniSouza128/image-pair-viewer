@@ -29,6 +29,20 @@
   não tem código de upload pra servidor — tudo é processado
   localmente via File API, Canvas e DataView.
 
+  PERSISTÊNCIA
+  ------------
+  ZERO. Por design, o app NÃO grava nada em localStorage / cookies /
+  IndexedDB. Toda visita começa "do zero" com:
+    - idioma seguindo navigator.language
+    - ordenação 'name' / 'asc'
+    - painéis expandidos (sidebar + strip abertos)
+    - resize dos painéis no default do CSS
+  O usuário pode mudar tudo durante a sessão (trocar idioma, arrastar
+  resizer, ciclar sort, recolher painéis), mas nada disso sobrevive a
+  um reload. Decisão de produto: o app é uma ferramenta de uso pontual,
+  não tem login, e visitantes diferentes na mesma máquina não devem
+  ver o estado uns dos outros.
+
   ARQUITETURA DO ARQUIVO
   ----------------------
   - <style>      tema dark, layouts desktop/mobile, todos
@@ -1825,13 +1839,13 @@ let _onAppendBatch = null;
    inline. Suporta substituição: t('load.processing', {i:3, n:21}).
 
    Detecção do idioma inicial:
-     1. localStorage 'lang' (preferência salva)
-     2. navigator.language (idioma do navegador, prefixo 'pt' → pt-BR)
-     3. fallback: 'en-US'
+     1. navigator.language (idioma do navegador, prefixo 'pt' → pt-BR)
+     2. fallback: 'en-US'
 
-   Persistência: setLang() salva em localStorage, então a escolha
-   sobrevive a reloads. Funciona dentro do mesmo origin (file:// pode
-   ter limitações em alguns browsers, mas geralmente OK).
+   PERSISTÊNCIA DESABILITADA por design — toda visita começa "do zero".
+   setLang() troca o idioma só durante a sessão atual; ao recarregar,
+   volta a seguir navigator.language. Vide o bloco PERSISTÊNCIA na seção
+   de comentários gerais do arquivo.
    ========================================================================== */
 const I18N = {
   'pt-BR': {
@@ -2392,15 +2406,12 @@ const I18N = {
   },
 };
 
-// Idioma ativo. Detectado na ordem: localStorage > navigator.language > en-US.
-// Suporta 4 idiomas (pt/en/es/fr) — escolhidos pelo público provável do app:
-// PT-BR (base original), EN-US (alcance global), ES (LATAM+Espanha),
-// FR (Europa + África francófona).
+// Idioma ativo. Detectado na ordem: navigator.language > en-US.
+// Persistência DESABILITADA por design — cada visita começa "do zero"
+// (vide bloco PERSISTÊNCIA mais abaixo). Suporta 6 idiomas:
+//   PT-BR (base original), EN-US (alcance global), ES (LATAM+Espanha),
+//   FR (Europa + África francófona), DE (Alemanha), JA (Japão).
 let currentLang = (() => {
-  try {
-    const saved = localStorage.getItem('lang');
-    if (saved && I18N[saved]) return saved;
-  } catch(_){}
   const nav = (navigator.language || '').toLowerCase();
   if (nav.startsWith('pt')) return 'pt-BR';
   if (nav.startsWith('es')) return 'es-ES';
@@ -2476,7 +2487,7 @@ function applyI18n(){
 function setLang(lang){
   if (!I18N[lang] || lang === currentLang) return;
   currentLang = lang;
-  try { localStorage.setItem('lang', lang); } catch(_){}
+  // Persistência desabilitada — escolha vale só nesta sessão.
   applyI18n();
   document.dispatchEvent(new CustomEvent('lang:change', { detail: { lang } }));
 }
@@ -3332,8 +3343,8 @@ function startApp(DATA){
   /* ============================================================
      ESTADO DE ORDENAÇÃO E SELEÇÃO
 
-     currentSort — modo de ordenação ativo. Persistido em localStorage
-       sob a chave 'sort'. Default: 'name' (alfabético).
+     currentSort — modo de ordenação ativo. Default: 'name' (alfabético).
+       Persistência DESABILITADA — sempre começa em 'name' a cada reload.
      selection  — Set<number> de índices selecionados. NÃO HÁ flag
        "modo seleção" separada: o "modo" é IMPLÍCITO em selection.size>0.
      selectionAnchor — último índice "primary" (último Ctrl-click,
@@ -3371,23 +3382,10 @@ function startApp(DATA){
   // Ordem em que o botão sort-main cicla os critérios.
   const SORT_FIELDS_ORDER = ['name', 'inserted', 'capture', 'modified'];
 
-  let currentSort = (() => {
-    try {
-      const saved = localStorage.getItem('sort');
-      if (saved && SORT_COMPARATORS[saved]) return saved;
-    } catch(_){}
-    return 'name';
-  })();
-  // Direção da ordenação: 'asc' (default) ou 'desc'. Persistida em
-  // localStorage independente do critério — assim cada usuário tem
-  // seu jeito favorito de ver a strip.
-  let sortDir = (() => {
-    try {
-      const saved = localStorage.getItem('sortDir');
-      if (saved === 'desc') return 'desc';
-    } catch(_){}
-    return 'asc';
-  })();
+  // Persistência DESABILITADA — toda sessão começa em 'name' / 'asc'.
+  let currentSort = 'name';
+  // Direção da ordenação: 'asc' (default) ou 'desc'.
+  let sortDir = 'asc';
   /* ----- MODELO DE SELEÇÃO (estilo Windows Explorer / Finder) -----
      Não existe mais "modo seleção" explícito. A seleção é IMPLÍCITA:
      se selection.size > 0, a UI mostra a barra de ações; senão não.
@@ -4721,7 +4719,8 @@ function startApp(DATA){
   /* ---- Sort split-button (cicla critério + inverte direção) ----
      sortBtn (sort-main) → cicla pra próximo critério em SORT_FIELDS_ORDER.
      sortDirBtn (sort-dir) → inverte sortDir ('asc' ↔ 'desc').
-     Cada ação persiste em localStorage e re-renderiza a strip. */
+     Cada ação re-renderiza a strip. Persistência DESABILITADA — a
+     ordenação volta ao default ('name'/'asc') a cada reload. */
   const sortBtn = $('sortBtn');
   const sortDirBtn = $('sortDirBtn');
   const sortLabel = $('sortLabel');
@@ -4734,7 +4733,7 @@ function startApp(DATA){
   function cycleSort(){
     const i = SORT_FIELDS_ORDER.indexOf(currentSort);
     currentSort = SORT_FIELDS_ORDER[(i + 1) % SORT_FIELDS_ORDER.length];
-    try { localStorage.setItem('sort', currentSort); } catch(_){}
+    // Persistência desabilitada — escolha vale só nesta sessão.
     applySort();
     rebuildStrip();
     load(current);
@@ -4742,7 +4741,7 @@ function startApp(DATA){
   }
   function toggleSortDir(){
     sortDir = sortDir === 'asc' ? 'desc' : 'asc';
-    try { localStorage.setItem('sortDir', sortDir); } catch(_){}
+    // Persistência desabilitada — escolha vale só nesta sessão.
     applySort();
     rebuildStrip();
     load(current);
@@ -4784,13 +4783,10 @@ function startApp(DATA){
      modificador) pra Fullscreen API. F11 é tratada pelo browser e
      nunca chega ao nosso keydown listener.
      ============================================================ */
+  // Persistência DESABILITADA — toda sessão começa com painéis expandidos.
   let allCollapsed = false;
-  try {
-    if (localStorage.getItem('allCollapsed') === '1') allCollapsed = true;
-  } catch(_){}
   function applyAllCollapsed(){
     app.classList.toggle('all-collapsed', allCollapsed);
-    try { localStorage.setItem('allCollapsed', allCollapsed ? '1' : '0'); } catch(_){}
   }
   applyAllCollapsed();
   $('collapseAllBtn').addEventListener('click', () => {
@@ -4800,34 +4796,28 @@ function startApp(DATA){
 
   /* ============================================================
      RESIZE HANDLES — sidebar (width) e strip (width desktop / height mobile)
-     ============================================================ */
 
-  // Restaura tamanho da SIDEBAR (sempre width). Sidebar nunca trocou
-  // de eixo entre versões.
-  try {
-    const sw = localStorage.getItem('sidebarW');
-    if (sw) sidebar.style.flexBasis = sw;
-  } catch(_){}
-  // Strip: restauração + scale acontece logo após bindResize ser
-  // configurado (mais abaixo), porque o eixo depende da orientação
-  // atual (desktop vertical x mobile horizontal). NÃO aplicar aqui
-  // o stripH legado como style.height, senão o aside ficaria fixo
-  // em altura pequena no layout vertical novo.
+     Persistência DESABILITADA — toda sessão começa com os tamanhos
+     default do CSS. As funções bindResize ainda permitem arrastar
+     durante a sessão atual, mas nada é salvo entre reloads.
+     ============================================================ */
 
   /**
    * Liga drag-to-resize numa faixa fina (.resizer). Também suporta
-   * DUPLO CLIQUE pra resetar ao tamanho default (limpa o style inline
-   * e remove o valor salvo em localStorage).
+   * DUPLO CLIQUE pra resetar ao tamanho default (limpa o style inline).
    *
-   * Para o strip (axis='y'), além de ajustar height também propaga
-   * --thumb-h CSS variable pra que TODA a strip (thumbs, ferramentas,
-   * fontes, ícones, bolinha de seleção) escale proporcionalmente.
+   * Persistência DESABILITADA — o tamanho dura só a sessão atual.
+   * O parâmetro storageKey é mantido na assinatura por compatibilidade
+   * histórica, mas nada é gravado.
+   *
+   * Para o strip, além de ajustar a dimensão também propaga --thumb-h
+   * CSS variable pra que os thumbs escalem proporcionalmente.
    *
    * @param {HTMLElement} handle  faixa de resize (cursor:col/row-resize)
    * @param {HTMLElement} target  painel a redimensionar
    * @param {string} axis         'x' (width) ou 'y' (height)
    * @param {number} minV, maxV   limites em px
-   * @param {string} storageKey   chave do localStorage
+   * @param {string} storageKey   (não usado — kept for signature compat)
    * @param {boolean} invert      true se direção positiva DIMINUI tamanho
    * @param {Function} [onApply]  callback opcional pra aplicar a nova
    *                              size em CSS vars (ex: strip → --thumb-h)
@@ -4855,24 +4845,22 @@ function startApp(DATA){
     });
     const end = e => {
       if (!drag) return;
-      try {
-        const v = axis === 'x' ? target.style.flexBasis : target.style.height;
-        if (v) localStorage.setItem(storageKey, v);
-      } catch(_){}
+      // Persistência desabilitada — tamanho vale só durante a sessão.
+      // storageKey é mantido na assinatura por compatibilidade, mas não
+      // grava nada em localStorage.
       handle.classList.remove('dragging');
       try { handle.releasePointerCapture(e.pointerId); } catch(_){}
       drag = null;
     };
     handle.addEventListener('pointerup', end);
     handle.addEventListener('pointercancel', end);
-    // Duplo clique reseta ao default (limpa inline + localStorage).
+    // Duplo clique reseta ao default (limpa só o inline style).
     handle.addEventListener('dblclick', e => {
       e.preventDefault();
       if (axis === 'x') target.style.flexBasis = '';
       else target.style.height = '';
       // Limpa CSS vars custom aplicadas via onApply (ex.: --thumb-h).
       target.style.removeProperty('--thumb-h');
-      try { localStorage.removeItem(storageKey); } catch(_){}
     });
   }
 
@@ -4910,26 +4898,9 @@ function startApp(DATA){
              isMobileLayout(),     // invert apenas em mobile (drag up = bigger)
              applyStripScale);
 
-  // Aplica tamanho salvo da orientação ATUAL. NÃO faz fallback cross-axis
-  // (stripH → stripW gera valores absurdos porque a antiga altura
-  // horizontal pequena vira largura vertical pequena, ou pior, a antiga
-  // altura grande vira largura excessiva). Cada orientação tem sua
-  // própria chave; sem valor salvo (ou se o valor for menor que minV),
-  // o CSS default toma conta — garante labels não truncadas no boot.
-  try {
-    const key = isMobileLayout() ? 'stripH' : 'stripW';
-    const sv = localStorage.getItem(key);
-    if (sv){
-      const v = parseFloat(sv);
-      if (!isNaN(v) && v >= minStripV){
-        // Aplica como dimensão inline (flexBasis no desktop, height em mobile)
-        // E propaga em --thumb-h pra escalar tools/fontes proporcionalmente.
-        if (isMobileLayout()) stripEl.style.height = sv;
-        else stripEl.style.flexBasis = sv;
-        applyStripScale(v);
-      }
-    }
-  } catch(_){}
+  // Persistência DESABILITADA — strip sempre começa no tamanho default
+  // do CSS. O usuário pode arrastar o resizer durante a sessão, mas
+  // nada é restaurado em reloads.
 
   /* ---------- Reage a mudança de idioma ----------
      Re-renderiza o info panel pra que strings traduzidas dinamicamente

@@ -93,11 +93,14 @@ No topo do painel há 3 botões empilhados:
 - **Remover** — sempre visível, em vermelho. Desabilitado quando
   nada está selecionado. Com 2+ selecionados, vira `Remover (5)`.
 
-A escolha de critério e direção são persistidas em `localStorage`.
-Os 3 elementos (Abrir, Ordenar, Remover) têm exatamente a **mesma
-altura** (`--tool-h`, derivada de `--thumb-h`). A largura padrão
-do painel respeita um piso de 160 px (`max(160px, thumb-h + pad)`)
-pra acomodar as labels mesmo nos idiomas mais verbosos.
+A escolha de critério e direção **NÃO** são persistidas — a cada
+reload o sort volta pro default (`name` / `asc`). Veja a seção
+"Persistência" mais abaixo.
+
+Os 3 elementos (Abrir, Ordenar, Remover) têm tipografia fixa de
+12 px e altura 28 px, casando com os botões da topbar. O painel
+respeita um piso de 136 px de largura, suficiente pras labels mais
+longas com folga.
 
 As miniaturas usam `object-fit:contain` — a foto inteira sempre cabe
 no card, podendo sobrar barras pretas nas laterais (foto vertical)
@@ -135,11 +138,11 @@ imagem ficar disponível.
 Um **único botão** no canto inferior direito da view central recolhe
 TODOS os painéis simultaneamente (topbar, strip, sidebar), expandindo
 o viewer pra ocupar a tela toda. Clicar de novo expande tudo de volta.
-O estado é persistido entre sessões.
+O estado NÃO é persistido — a cada reload os painéis voltam expandidos.
 
 **Resize**: arraste a borda interna da sidebar (esquerda) ou do
 strip (topo) pra ajustar tamanho. **Duplo clique** na borda volta
-ao tamanho padrão. O tamanho fica salvo em `localStorage`.
+ao tamanho padrão. O tamanho vale só durante a sessão atual.
 
 Ao aumentar a altura da strip, **tudo escala junto** proporcionalmente:
 miniaturas maiores, botões maiores, textos maiores, bolinha de
@@ -182,9 +185,8 @@ Botão na topbar (mostra a label do idioma ativo: `PT` / `EN` / `ES` /
 - 🇩🇪 **Deutsch (DE-DE)**
 - 🇯🇵 **日本語 (JA-JP)**
 
-Detecção inicial: preferência salva (`localStorage`) →
-`navigator.language` → fallback EN-US. A escolha persiste entre
-sessões.
+Detecção inicial: `navigator.language` → fallback EN-US. A escolha
+**não** é persistida — a cada reload o idioma volta ao do navegador.
 
 O **título da aba** do navegador (`document.title`) acompanha o
 idioma — ex.: muda entre "Antes / Depois", "Before / After",
@@ -238,6 +240,22 @@ Requer Python 3.10+ e Pillow (`pip install pillow`). O script:
 Vantagem: qualquer feature nova adicionada ao `index.html` é
 automaticamente herdada pelo `comparador.html` gerado, sem precisar
 atualizar o `_build.py`.
+
+## Persistência
+
+**ZERO.** Por design, o app não grava nada em `localStorage`,
+cookies ou `IndexedDB`. Toda visita começa "do zero" com:
+
+- idioma seguindo `navigator.language`
+- ordenação `name` / `asc`
+- painéis expandidos (sidebar + strip abertos)
+- resize dos painéis no default do CSS
+
+Durante a sessão o usuário pode mudar tudo (trocar idioma, arrastar
+o resizer, ciclar critério de sort, recolher os painéis), mas nada
+sobrevive ao reload. Decisão de produto: o app é uma ferramenta de
+uso pontual, não tem login, e visitantes diferentes na mesma máquina
+não devem ver o estado uns dos outros.
 
 ## Hospedagem
 
