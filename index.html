@@ -706,31 +706,42 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
    override pra 62px. O resize handler sobrescreve via style inline.
    ========================================================================== */
 /* ============ STRIP LATERAL ESQUERDA (desktop default) ============
-   Coluna vertical à esquerda do stage. As tokens internas escalam
-   com --thumb-h (que aqui representa a LARGURA do thumb na coluna,
-   uma vez que thumbs são quadrados). Largura externa do strip =
-   thumb-h + ~22 (igual ao padrão antigo, só rotacionado). */
+   Coluna vertical à esquerda do stage. Dois grupos de tokens:
+
+   1. THUMB tokens (escalam com --thumb-h, via resize horizontal)
+      - --thumb-h: tamanho do thumb (square)
+      - --num-fs, --sel-size, --thumb-radius, --strip-pad-x
+
+   2. TOOL tokens (FIXOS, não escalam com thumb-h)
+      - --tool-h, --tool-fs, --tool-icon, --tool-gap, --tool-pad
+      Tipografia/altura dos botões "Abrir fotos / Ordenar / Remover"
+      ficam coerentes com a .mode-btn da topbar (12px / ~28px) e
+      independentes do tamanho dos thumbs. Isso garante que aumentar
+      o thumb não infla os botões — preserva mais espaço pras
+      miniaturas embaixo. */
 .thumbstrip-wrap{flex:0 0 auto;background:linear-gradient(180deg,var(--bg-1),var(--bg));
   border-right:1px solid var(--line);position:relative;display:flex;flex-direction:column;
-  /* Sistema de tokens derivados — TUDO escala com --thumb-h. */
+  /* THUMB tokens (escalam com --thumb-h) */
   --thumb-h:78px;
-  --tool-h:calc(var(--thumb-h) * 0.385);          /* 30px @ 78 */
-  --tool-fs:calc(var(--thumb-h) * 0.154);         /* 12px @ 78 */
-  --tool-icon:calc(var(--thumb-h) * 0.18);        /* 14px @ 78 */
-  --tool-gap:calc(var(--thumb-h) * 0.077);        /* 6px @ 78 */
-  --tool-pad:calc(var(--thumb-h) * 0.154);        /* 12px @ 78 */
-  --tools-w:calc(var(--thumb-h) * 1.9);           /* 148px @ 78 (legado, usado em mobile) */
   --num-fs:calc(var(--thumb-h) * 0.128);          /* 10px @ 78 */
   --sel-size:calc(var(--thumb-h) * 0.282);        /* 22px @ 78 */
   --sel-icon:calc(var(--thumb-h) * 0.167);        /* 13px @ 78 */
   --thumb-radius:calc(var(--thumb-h) * 0.103);    /* 8px @ 78 */
-  --strip-pad-x:calc(var(--thumb-h) * 0.179);     /* 14px @ 78 (horizontal interno do strip) */
-  /* Largura default = max(160px, thumb-h + padding * 2). O floor de
-     160px garante que os botões da strip-tools (Abrir fotos / Nome /
-     Remover) caibam confortavelmente nos idiomas mais comuns. Quando
-     o usuário arrasta o resizer pra aumentar (flex-basis inline), o
-     valor passa a controlar e o CSS max() é ignorado. */
-  width:max(160px, calc(var(--thumb-h) + var(--strip-pad-x) * 2));
+  --strip-pad-x:calc(var(--thumb-h) * 0.154);     /* 12px @ 78 */
+  /* TOOL tokens (FIXOS — tipografia consistente com a topbar) */
+  --tool-h:28px;
+  --tool-fs:12px;
+  --tool-icon:14px;
+  --tool-gap:5px;
+  --tool-pad:8px;
+  --tools-w:132px;                                /* legado, usado em mobile */
+  /* Largura default = max(136px, thumb-h + padding * 2). Floor 136px
+     comporta confortavelmente o "Abrir fotos" no idioma mais verboso
+     com tipografia fixa de 12px. Foi reduzida 15% em relação ao floor
+     anterior (160px → 136px) a pedido. Quando o usuário arrasta o
+     resizer pra aumentar (flex-basis inline), o valor passa a controlar
+     e o CSS max() é ignorado. */
+  width:max(136px, calc(var(--thumb-h) + var(--strip-pad-x) * 2));
   height:100%}
 .thumbstrip{display:flex;flex-direction:column;gap:calc(var(--thumb-h) * 0.103);
   padding:10px var(--strip-pad-x);overflow-y:auto;overflow-x:hidden;flex:1;min-height:0;
@@ -830,22 +841,24 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
    regardless do label. flex-direction:column empilha.
    ========================================================================== */
 /* Strip-tools = bloco do TOPO da coluna lateral esquerda (desktop).
-   Ocupa 100% da largura do strip; padding escala com --thumb-h.
+   Ocupa 100% da largura do strip. Padding/gap FIXOS (não escalam com
+   --thumb-h) pra manter os botões compactos mesmo quando o usuário
+   aumenta o thumb via resize — assim sobra mais espaço pras miniaturas.
    Em mobile (media query mais abaixo) volta a ser coluna LATERAL à
    esquerda da faixa horizontal (largura fixa --tools-w). */
 .strip-tools{display:flex;flex-direction:column;
-  gap:calc(var(--thumb-h) * 0.077);
-  padding:calc(var(--thumb-h) * 0.128) var(--strip-pad-x);
+  gap:4px;
+  padding:8px var(--strip-pad-x);
   flex-shrink:0;position:relative;width:100%;
   border-bottom:1px solid var(--line-2);box-sizing:border-box}
 .strip-tools[hidden]{display:none}
 .strip-tool{display:inline-flex;align-items:center;
-  gap:calc(var(--tool-fs) * 0.6);
+  gap:var(--tool-gap);
   padding:0 var(--tool-pad);height:var(--tool-h);
   /* flex:0 0 var(--tool-h) impede que o flex column estique o botão
-     quando há espaço extra (justify-content:center) — preserva a
-     altura uniforme entre os 3 elementos. min-width:0 garante que
-     o label trunque com ellipsis em vez de overflow horizontal. */
+     quando há espaço extra — preserva a altura uniforme entre os 3
+     elementos. min-width:0 garante que o label trunque com ellipsis
+     em vez de overflow horizontal. */
   flex:0 0 var(--tool-h);
   background:var(--bg-2);border:1px solid var(--line);
   border-radius:calc(var(--tool-h) * 0.23);
