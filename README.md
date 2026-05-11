@@ -158,9 +158,17 @@ no label se 2+).
 
 ## Idioma
 
-Botão `PT`/`EN` na topbar alterna PT-BR ↔ EN-US. Detecção inicial:
-preferência salva (`localStorage`) → `navigator.language` → fallback
-EN-US. A escolha persiste entre sessões.
+Botão na topbar (mostra a label do idioma ativo: `PT` / `EN` / `ES` /
+`FR`) abre um menu com 4 idiomas:
+
+- 🇧🇷 **Português (PT-BR)**
+- 🇺🇸 **English (EN-US)**
+- 🇪🇸 **Español (ES-ES)**
+- 🇫🇷 **Français (FR-FR)**
+
+Detecção inicial: preferência salva (`localStorage`) →
+`navigator.language` → fallback EN-US. A escolha persiste entre
+sessões.
 
 ## Exportação
 
@@ -178,6 +186,35 @@ Em ambos os casos, as imagens são re-encodadas em JPEG comprimido
 resultante é totalmente standalone — abre direto pelo `file://`
 e funciona com todos os recursos do app live (slider, lado a lado,
 solo, zoom, EXIF, atalhos).
+
+## Build CLI (opcional)
+
+Alternativa em linha de comando ao "Galeria offline (todas)" do
+botão de exportação. Útil pra processar um lote sem abrir a UI.
+
+```
+python _build.py                        # usa o diretório do script
+python _build.py --src C:\photos        # pasta explícita
+python _build.py --out gallery.html     # arquivo de saída
+python _build.py --max-full 2400        # imagens embutidas maiores
+```
+
+Requer Python 3.10+ e Pillow (`pip install pillow`). O script:
+
+1. Lê todas as imagens da pasta (`.jpg|.jpeg|.png|.webp`).
+2. Pareia pelo mesmo critério do `parseId` em JS (runs de 4+ dígitos
+   concatenados com `-`).
+3. Reduz cada foto pra max 2200 px / JPEG q=85 e codifica em base64.
+4. Extrai EXIF (data, autor, câmera, lente, ISO, abertura, obturador,
+   focal) + coordenadas GPS se presentes (resolvidas em runtime via
+   Nominatim quando o HTML é aberto).
+5. Lê o `index.html` do diretório e injeta `window.EMBEDDED_DATA = [...]`
+   antes do `<script>` principal — o runtime detecta e pula a tela
+   de upload.
+
+Vantagem: qualquer feature nova adicionada ao `index.html` é
+automaticamente herdada pelo `comparador.html` gerado, sem precisar
+atualizar o `_build.py`.
 
 ## Hospedagem
 
@@ -203,9 +240,13 @@ Também roda direto pelo `file://` (abre o `index.html` no browser).
 - **JS** — duas partes: pareamento + leitura de arquivos + parser
   EXIF; e `startApp(DATA)` com toda a interatividade (pointer
   events, transforms CSS para zoom ancorado, navegação, modos,
-  atalhos).
+  atalhos). i18n inline (4 idiomas) com `t(key)` e `data-i18n*`.
 
-Sem build. Sem dependências. Sem servidor.
+`_build.py` (opcional) é um helper CLI em Python que processa
+uma pasta de fotos e gera `comparador.html` standalone reusando
+o `index.html` como template e injetando `window.EMBEDDED_DATA`.
+
+Sem build obrigatório. Sem dependências em runtime. Sem servidor.
 
 ## Licença
 

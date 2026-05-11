@@ -335,11 +335,7 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
 .icon-btn svg{width:16px;height:16px}
 .icon-btn:hover{background:var(--bg-2);color:var(--fg);border-color:var(--line)}
 .icon-btn.active{background:var(--bg-3);color:var(--accent);border-color:var(--line)}
-/* Botão de idioma — em vez de SVG, mostra "PT" ou "EN" como label.
-   Largura um pouco menor que os outros pra caber no espaço apertado
-   e font-size em monospace pra alinhar bem 2 letras. */
-.lang-btn{font-size:11px;font-weight:700;letter-spacing:.5px;
-  font-family:ui-monospace,Consolas,monospace;width:38px}
+/* (Estilo do .lang-btn foi consolidado mais abaixo, junto com o .lang-menu.) */
 
 /* ==========================================================================
    MENU DROPDOWN (usado pelo botão de exportação)
@@ -367,6 +363,21 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
 .menu button svg{width:15px;height:15px;flex-shrink:0;margin-top:1px;color:var(--fg-3)}
 .menu .item-title{display:block;color:var(--fg);font-weight:500}
 .menu .item-sub{display:block;color:var(--fg-3);font-size:11px;margin-top:2px}
+
+/* Menu de idiomas: variante mais compacta que o de exportação.
+   Cada item = bandeira (emoji) + nome do idioma. O item ativo recebe
+   borda lateral colorida e cor de accent. */
+.lang-menu{min-width:170px}
+.lang-menu .lang-item{width:100%;padding:8px 12px;background:transparent;border:none;
+  color:var(--fg);text-align:left;cursor:pointer;border-radius:7px;display:flex;
+  align-items:center;gap:10px;font-size:13px;font-family:inherit;
+  transition:background var(--t-fast)}
+.lang-menu .lang-item:hover{background:var(--bg-2)}
+.lang-menu .lang-item.active{color:var(--accent);background:rgba(255,174,60,.08)}
+.lang-menu .lang-flag{font-size:16px;line-height:1;width:22px;text-align:center;flex-shrink:0}
+.lang-menu .lang-item.active .item-title{font-weight:600}
+.lang-btn{font-size:11px;font-weight:700;letter-spacing:.5px;
+  font-family:ui-monospace,Consolas,monospace;width:38px}
 
 /* ==========================================================================
    MAIN — área central + sidebar
@@ -1261,12 +1272,16 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
        de fonte (zero requests, zero FOIT). aria-label complementa
        title pra acessibilidade quando o ícone não tem texto. -->
   <div class="actions">
-    <!-- Toggle de idioma. O texto interno ("PT" ou "EN") é atualizado
-         em JS conforme o idioma ativo. Clique cicla entre PT-BR e EN-US
-         e persiste a escolha em localStorage. -->
-    <button class="icon-btn lang-btn" id="btnLang" title="Idioma / Language" aria-label="Idioma">
+    <!-- Botão de idioma. Mostra label curta (PT/EN/ES/FR) do idioma
+         ativo. Clique abre #langMenu com bandeira + nome completo
+         dos 4 idiomas suportados. Reusa .menu (mesmo visual do
+         dropdown de exportação). Itens são populados em JS a partir
+         de LANG_INFO. -->
+    <button class="icon-btn lang-btn" id="btnLang" title="Idioma / Language / Idioma / Langue"
+      aria-label="Idioma" aria-haspopup="menu" aria-expanded="false">
       <span id="langLabel">PT</span>
     </button>
+    <div class="menu lang-menu" id="langMenu" role="menu" hidden></div>
     <!-- Recarregar lote: descarta os atuais (revoga Object URLs) e
          volta pra tela de upload.
          NOTA: o botão "+ Adicionar" voltou pra strip-tools como
@@ -1908,16 +1923,217 @@ const I18N = {
     'ui.collapseAll': 'Collapse / expand panels',
     'err.exportPending': 'Wait for photos to finish loading before exporting.',
   },
+  'es-ES': {
+    'upload.instruction': 'Sube tu conjunto de fotos — originales y versiones editadas, todas juntas. Los pares se identifican automáticamente por el nombre de los archivos.',
+    'upload.button': 'Seleccionar fotos',
+    'upload.privacy': 'Procesado 100% en tu navegador. Nada se envía a ningún servidor — todo se descarta al cerrar la pestaña.',
+    'ui.cancel': 'Cancelar', 'ui.confirm': 'Confirmar', 'ui.close': 'Cerrar',
+    'ui.export': 'Exportar HTML', 'ui.info': 'Información (I)',
+    'ui.fullscreen': 'Pantalla completa (F)', 'ui.help': 'Ayuda (?)',
+    'ui.reload': 'Cargar otras fotos',
+    'topbar.modesNav': 'Modo de visualización',
+    'mode.slider': 'Deslizador', 'mode.side': 'Lado a Lado', 'mode.solo': 'Solo',
+    'mode.slider.title': 'Deslizador (S)', 'mode.side.title': 'Lado a Lado (S)',
+    'mode.solo.title': 'Solo — mantén Espacio para alternar (S)',
+    'export.all.title': 'Galería offline (todas)',
+    'export.all.sub': 'HTML único con todos los pares cargados',
+    'export.one.title': 'Comparador de esta foto',
+    'export.one.sub': 'HTML pequeño del par actual (para compartir)',
+    'badge.before': 'Antes', 'badge.after': 'Después',
+    'handle.move': 'Mover deslizador', 'sidebar.close': 'Cerrar panel',
+    'nav.prev': 'Anterior', 'nav.next': 'Siguiente',
+    'zoom.in': 'Acercar', 'zoom.out': 'Alejar', 'zoom.reset': 'Restablecer (0)',
+    'info.id': 'ID', 'info.file': 'Archivo', 'info.dim': 'Dimensiones',
+    'info.size': 'Tamaño', 'info.capture': 'Captura', 'info.date': 'Fecha',
+    'info.author': 'Autor', 'info.camera': 'Cámara', 'info.lens': 'Lente',
+    'info.aperture': 'Apertura', 'info.shutter': 'Obturador', 'info.focal': 'Focal',
+    'info.location': 'Ubicación', 'info.coords': 'Coordenadas',
+    'help.title': 'Atajos y Gestos', 'help.keyboard': 'Teclado',
+    'help.mouse': 'Ratón', 'help.touch': 'Táctil', 'help.or': 'o',
+    'help.kb.nav': 'Navegar entre fotos', 'help.kb.space': 'Espacio',
+    'help.kb.spaceDesc': '(Modo Solo) Mantén para alternar Antes/Después',
+    'help.kb.slider': 'Mover deslizador 5%', 'help.kb.zoom': 'Acercar / Alejar',
+    'help.kb.reset': 'Restablecer zoom', 'help.kb.fs': 'Pantalla completa',
+    'help.kb.info': 'Panel de información', 'help.kb.mode': 'Cambiar modo',
+    'help.kb.help': 'Esta ayuda',
+    'help.kb.selAll': 'Ctrl+A', 'help.kb.selAllDesc': 'Seleccionar todos los pares',
+    'help.kb.del': 'Supr', 'help.kb.delDesc': 'Eliminar pares seleccionados',
+    'help.m.wheel': 'Rueda', 'help.m.wheelDesc': 'Zoom (anclado al cursor)',
+    'help.m.drag': 'Arrastrar', 'help.m.dragDesc': 'Mover deslizador · Pan con zoom',
+    'help.m.press': 'Presionar (Solo)', 'help.m.pressDesc': 'Mantén para alternar Antes/Después',
+    'help.m.dblKnob': 'Doble clic en el knob',
+    'help.m.dblKnobDesc': 'Deslizador vuelve al centro (50%)',
+    'help.m.dbl': 'Doble clic', 'help.m.dblDesc': 'Restablecer zoom',
+    'help.t.pinch': 'Pellizco', 'help.t.pinchDesc': 'Zoom',
+    'help.t.drag': 'Arrastre horizontal',
+    'help.t.dragDesc': 'Mover deslizador · deslizamiento rápido cambia foto',
+    'help.t.dbl': 'Toque doble', 'help.t.dblDesc': 'Restablecer zoom',
+    'help.t.tap': 'Toque simple', 'help.t.tapDesc': 'Mostrar/ocultar interfaz',
+    'err.fewFiles': 'Selecciona al menos 2 imágenes.',
+    'err.noPairs': 'No se detectó ningún par. Verifica que los nombres de archivo sigan patrones de cámara (IMG_NNNN, DSC_NNNNN, etc.) y contengan originales + versiones editadas.',
+    'err.loadFail': 'No se pudo cargar ninguna de las imágenes.',
+    'err.exportFail': 'Falló la exportación',
+    'load.reading': 'Leyendo {n} pares…',
+    'load.processing': 'Procesando {i}/{n}: {id}',
+    'load.preparing': 'Preparando exportación…',
+    'load.generating': 'Generando HTML…',
+    'hint.gestures': 'Desliza ⇆ para cambiar · Pellizca para zoom',
+    'confirm.reload.title': '¿Cargar otras fotos?',
+    'confirm.reload.msg': 'Las fotos actuales se descartarán. Puedes volver a subirlas después.',
+    'confirm.reload.yes': 'Descartar y recargar',
+    'geo.resolving': 'consultando…',
+    'geo.attribution': 'vía OpenStreetMap',
+    'sort.name': 'Nombre',
+    'sort.inserted': 'Inserción',
+    'sort.capture': 'Captura',
+    'sort.modified': 'Modificación',
+    'sort.name.full': 'Nombre (A → Z)',
+    'sort.inserted.full': 'Orden de inserción',
+    'sort.capture.full': 'Fecha de captura (antigua → reciente)',
+    'sort.modified.full': 'Modificación (reciente → antigua)',
+    'ui.sort': 'Ordenar',
+    'ui.addMore': 'Añadir más fotos',
+    'ui.select': 'Seleccionar',
+    'ui.remove': 'Eliminar',
+    'select.count': '{n} seleccionada(s)',
+    'select.empty': 'Ninguna seleccionada',
+    'confirm.remove.title': '¿Eliminar fotos de la sesión?',
+    'confirm.remove.msg': 'Se eliminarán {n} par(es). Los archivos originales en tu dispositivo no se ven afectados — puedes volver a subirlos después.',
+    'confirm.remove.yes': 'Eliminar',
+    'notif.added': '{n} nuevo(s) par(es)',
+    'notif.skipped': '{n} ya estaba(n) cargado(s)',
+    'notif.none': 'Ningún par nuevo (todos ya cargados o inválidos)',
+    'notif.adding': 'Añadiendo…',
+    'select.tip.desktop': 'Ctrl+clic para seleccionar varias',
+    'select.tip.touch': 'Mantén pulsado para seleccionar varias',
+    'drag.title': 'Suelta las fotos aquí',
+    'drag.sub': 'Originales y versiones editadas — se añadirán a la sesión',
+    'drag.sub.initial': 'Originales y versiones editadas, todas juntas',
+    'ui.openMore': 'Abrir fotos',
+    'ui.sort.cycle': 'Ciclar criterio de ordenación',
+    'ui.sort.dir': 'Invertir orden (asc/desc)',
+    'ui.collapseAll': 'Plegar / desplegar paneles',
+    'err.exportPending': 'Espera a que las fotos terminen de cargar antes de exportar.',
+  },
+  'fr-FR': {
+    'upload.instruction': "Téléversez votre lot de photos — originaux et versions éditées, tous ensemble. Les paires sont identifiées automatiquement par les noms des fichiers.",
+    'upload.button': 'Choisir des photos',
+    'upload.privacy': "Traité 100% dans votre navigateur. Rien n'est envoyé à un serveur — tout est effacé à la fermeture de l'onglet.",
+    'ui.cancel': 'Annuler', 'ui.confirm': 'Confirmer', 'ui.close': 'Fermer',
+    'ui.export': 'Exporter HTML', 'ui.info': 'Informations (I)',
+    'ui.fullscreen': 'Plein écran (F)', 'ui.help': 'Aide (?)',
+    'ui.reload': "Charger d'autres photos",
+    'topbar.modesNav': "Mode d'affichage",
+    'mode.slider': 'Curseur', 'mode.side': 'Côte à côte', 'mode.solo': 'Solo',
+    'mode.slider.title': 'Curseur (S)', 'mode.side.title': 'Côte à côte (S)',
+    'mode.solo.title': 'Solo — maintenez Espace pour basculer (S)',
+    'export.all.title': 'Galerie hors ligne (toutes)',
+    'export.all.sub': 'HTML unique avec toutes les paires chargées',
+    'export.one.title': 'Comparateur de cette photo',
+    'export.one.sub': 'Petit HTML de la paire actuelle (à partager)',
+    'badge.before': 'Avant', 'badge.after': 'Après',
+    'handle.move': 'Déplacer le curseur', 'sidebar.close': 'Fermer le panneau',
+    'nav.prev': 'Précédente', 'nav.next': 'Suivante',
+    'zoom.in': 'Zoom avant', 'zoom.out': 'Zoom arrière', 'zoom.reset': 'Réinitialiser (0)',
+    'info.id': 'ID', 'info.file': 'Fichier', 'info.dim': 'Dimensions',
+    'info.size': 'Taille', 'info.capture': 'Capture', 'info.date': 'Date',
+    'info.author': 'Auteur', 'info.camera': 'Appareil', 'info.lens': 'Objectif',
+    'info.aperture': 'Ouverture', 'info.shutter': 'Vitesse', 'info.focal': 'Focale',
+    'info.location': 'Emplacement', 'info.coords': 'Coordonnées',
+    'help.title': 'Raccourcis et Gestes', 'help.keyboard': 'Clavier',
+    'help.mouse': 'Souris', 'help.touch': 'Tactile', 'help.or': 'ou',
+    'help.kb.nav': 'Naviguer entre les photos', 'help.kb.space': 'Espace',
+    'help.kb.spaceDesc': '(Mode Solo) Maintenir pour basculer Avant/Après',
+    'help.kb.slider': 'Déplacer le curseur de 5%', 'help.kb.zoom': 'Zoom avant / arrière',
+    'help.kb.reset': 'Réinitialiser le zoom', 'help.kb.fs': 'Plein écran',
+    'help.kb.info': "Panneau d'informations", 'help.kb.mode': 'Changer de mode',
+    'help.kb.help': 'Cette aide',
+    'help.kb.selAll': 'Ctrl+A', 'help.kb.selAllDesc': 'Sélectionner toutes les paires',
+    'help.kb.del': 'Suppr', 'help.kb.delDesc': 'Supprimer les paires sélectionnées',
+    'help.m.wheel': 'Molette', 'help.m.wheelDesc': 'Zoom (ancré au curseur)',
+    'help.m.drag': 'Glisser', 'help.m.dragDesc': 'Déplacer curseur · Pano avec zoom',
+    'help.m.press': 'Appuyer (Solo)', 'help.m.pressDesc': 'Maintenir pour basculer Avant/Après',
+    'help.m.dblKnob': 'Double-clic sur le knob',
+    'help.m.dblKnobDesc': 'Curseur revient au centre (50%)',
+    'help.m.dbl': 'Double-clic', 'help.m.dblDesc': 'Réinitialiser le zoom',
+    'help.t.pinch': 'Pincer', 'help.t.pinchDesc': 'Zoom',
+    'help.t.drag': 'Glissement horizontal',
+    'help.t.dragDesc': 'Déplacer curseur · glissement rapide change de photo',
+    'help.t.dbl': 'Double-tap', 'help.t.dblDesc': 'Réinitialiser le zoom',
+    'help.t.tap': 'Tap simple', 'help.t.tapDesc': "Afficher/masquer l'interface",
+    'err.fewFiles': 'Sélectionnez au moins 2 images.',
+    'err.noPairs': "Aucune paire détectée. Vérifiez que les noms de fichiers suivent les conventions d'appareil (IMG_NNNN, DSC_NNNNN, etc.) et contiennent originaux + versions éditées.",
+    'err.loadFail': "Impossible de charger les images.",
+    'err.exportFail': "Échec de l'exportation",
+    'load.reading': 'Lecture de {n} paires…',
+    'load.processing': 'Traitement {i}/{n} : {id}',
+    'load.preparing': "Préparation de l'export…",
+    'load.generating': 'Génération du HTML…',
+    'hint.gestures': 'Glissez ⇆ pour changer · Pincez pour zoomer',
+    'confirm.reload.title': "Charger d'autres photos ?",
+    'confirm.reload.msg': 'Les photos actuelles seront supprimées. Vous pourrez les recharger plus tard.',
+    'confirm.reload.yes': 'Supprimer et recharger',
+    'geo.resolving': 'recherche…',
+    'geo.attribution': 'via OpenStreetMap',
+    'sort.name': 'Nom',
+    'sort.inserted': 'Insertion',
+    'sort.capture': 'Capture',
+    'sort.modified': 'Modification',
+    'sort.name.full': 'Nom (A → Z)',
+    'sort.inserted.full': "Ordre d'insertion",
+    'sort.capture.full': 'Date de capture (ancien → récent)',
+    'sort.modified.full': 'Modification (récent → ancien)',
+    'ui.sort': 'Trier',
+    'ui.addMore': 'Ajouter plus de photos',
+    'ui.select': 'Sélectionner',
+    'ui.remove': 'Supprimer',
+    'select.count': '{n} sélectionnée(s)',
+    'select.empty': 'Aucune sélectionnée',
+    'confirm.remove.title': 'Supprimer les photos de la session ?',
+    'confirm.remove.msg': '{n} paire(s) seront supprimées. Les fichiers originaux sur votre appareil ne sont pas affectés — vous pourrez les recharger plus tard.',
+    'confirm.remove.yes': 'Supprimer',
+    'notif.added': '{n} nouvelle(s) paire(s)',
+    'notif.skipped': '{n} déjà chargée(s)',
+    'notif.none': 'Aucune nouvelle paire (toutes déjà chargées ou invalides)',
+    'notif.adding': 'Ajout en cours…',
+    'select.tip.desktop': 'Ctrl+clic pour sélectionner plusieurs',
+    'select.tip.touch': 'Appui long pour sélectionner plusieurs',
+    'drag.title': 'Déposez les photos ici',
+    'drag.sub': 'Originaux et versions éditées — seront ajoutées à la session',
+    'drag.sub.initial': 'Originaux et versions éditées, tous ensemble',
+    'ui.openMore': 'Ouvrir des photos',
+    'ui.sort.cycle': 'Faire défiler le critère de tri',
+    'ui.sort.dir': "Inverser l'ordre (asc/desc)",
+    'ui.collapseAll': 'Replier / déplier les panneaux',
+    'err.exportPending': 'Attendez la fin du chargement des photos avant d\'exporter.',
+  },
 };
 
 // Idioma ativo. Detectado na ordem: localStorage > navigator.language > en-US.
+// Suporta 4 idiomas (pt/en/es/fr) — escolhidos pelo público provável do app:
+// PT-BR (base original), EN-US (alcance global), ES (LATAM+Espanha),
+// FR (Europa + África francófona).
 let currentLang = (() => {
   try {
     const saved = localStorage.getItem('lang');
     if (saved && I18N[saved]) return saved;
   } catch(_){}
-  return navigator.language && navigator.language.toLowerCase().startsWith('pt') ? 'pt-BR' : 'en-US';
+  const nav = (navigator.language || '').toLowerCase();
+  if (nav.startsWith('pt')) return 'pt-BR';
+  if (nav.startsWith('es')) return 'es-ES';
+  if (nav.startsWith('fr')) return 'fr-FR';
+  return 'en-US';
 })();
+
+/** Label curta (2 letras) p/ exibir no botão de idioma. */
+const LANG_LABEL = { 'pt-BR':'PT', 'en-US':'EN', 'es-ES':'ES', 'fr-FR':'FR' };
+/** Bandeira / nome longo p/ o menu dropdown. */
+const LANG_INFO = {
+  'pt-BR': { flag:'🇧🇷', name:'Português' },
+  'en-US': { flag:'🇺🇸', name:'English' },
+  'es-ES': { flag:'🇪🇸', name:'Español' },
+  'fr-FR': { flag:'🇫🇷', name:'Français' },
+};
 
 /**
  * Tradução com substituição opcional de placeholders {chave}.
@@ -1954,8 +2170,13 @@ function applyI18n(){
     el.setAttribute('aria-label', t(el.dataset.i18nAria));
   });
   document.documentElement.lang = currentLang;
+  // Label do botão (PT/EN/ES/FR)
   const lbl = document.getElementById('langLabel');
-  if (lbl) lbl.textContent = currentLang === 'pt-BR' ? 'PT' : 'EN';
+  if (lbl) lbl.textContent = LANG_LABEL[currentLang] || 'EN';
+  // Estado ativo dos itens do menu de idioma
+  document.querySelectorAll('#langMenu [data-lang]').forEach(el => {
+    el.classList.toggle('active', el.dataset.lang === currentLang);
+  });
 }
 
 /**
@@ -1970,11 +2191,53 @@ function setLang(lang){
   document.dispatchEvent(new CustomEvent('lang:change', { detail: { lang } }));
 }
 
-// Liga o botão da topbar — alterna entre PT-BR e EN-US.
+// Liga o botão de idioma — abre dropdown com PT/EN/ES/FR.
+// Construímos os <button> do menu dinamicamente a partir de LANG_INFO
+// pra ficar fácil adicionar novos idiomas no futuro (basta adicionar
+// uma entrada em I18N + LANG_LABEL + LANG_INFO).
 const _btnLang = document.getElementById('btnLang');
-if (_btnLang){
-  _btnLang.addEventListener('click', () => {
-    setLang(currentLang === 'pt-BR' ? 'en-US' : 'pt-BR');
+const _langMenu = document.getElementById('langMenu');
+if (_btnLang && _langMenu){
+  // Popula o menu uma vez no boot (reusa .menu existente).
+  _langMenu.innerHTML = Object.entries(LANG_INFO).map(([code, info]) =>
+    `<button class="lang-item" data-lang="${code}" type="button" role="menuitemradio">`
+    + `<span class="lang-flag">${info.flag}</span>`
+    + `<span class="item-title">${info.name}</span>`
+    + `</button>`
+  ).join('');
+
+  function closeLangMenu(){
+    _langMenu.hidden = true;
+    _btnLang.setAttribute('aria-expanded', 'false');
+  }
+  function openLangMenu(){
+    _langMenu.hidden = false;
+    _btnLang.setAttribute('aria-expanded', 'true');
+    // Marca o ativo (applyI18n já faz, mas garantir aqui pós-popular).
+    _langMenu.querySelectorAll('[data-lang]').forEach(el =>
+      el.classList.toggle('active', el.dataset.lang === currentLang));
+  }
+  _btnLang.addEventListener('click', e => {
+    e.stopPropagation();
+    if (_langMenu.hidden) openLangMenu(); else closeLangMenu();
+  });
+  _langMenu.addEventListener('click', e => {
+    const item = e.target.closest('[data-lang]');
+    if (!item) return;
+    e.stopPropagation();
+    setLang(item.dataset.lang);
+    closeLangMenu();
+  });
+  // Fecha ao clicar fora ou apertar Esc.
+  document.addEventListener('click', e => {
+    if (!_langMenu.hidden
+        && !_langMenu.contains(e.target)
+        && !_btnLang.contains(e.target)){
+      closeLangMenu();
+    }
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && !_langMenu.hidden) closeLangMenu();
   });
 }
 

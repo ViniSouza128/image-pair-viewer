@@ -16,7 +16,8 @@ desktop.ini
 .vscode/
 .idea/
 
-# Scripts / artefatos temporários
+# Scripts / artefatos temporários (mas o builder oficial é mantido)
 _*.py
+!_build.py
 _*.html
 *.tmp.js
