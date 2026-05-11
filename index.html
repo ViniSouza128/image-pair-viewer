@@ -414,7 +414,10 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
 /* .stage: container do viewer atual (compare ou side).
    overflow:hidden corta tudo que vazar — necessário pra clip-path
    da camada e pra contenção do zoom alto. */
-.stage{flex:1 1 auto;position:relative;overflow:hidden;background:#050608;min-width:0}
+/* contain: layout paint isola o stage do resto do layout — mudanças
+   dentro (zoom, pan, slider) não disparam reflow nos painéis vizinhos. */
+.stage{flex:1 1 auto;position:relative;overflow:hidden;background:#050608;min-width:0;
+  contain:layout paint}
 
 /* ----- VIEW SWITCHER -----
    Cada modo (compare/side) é um <div class="view"> independente.
@@ -483,9 +486,14 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
    por transform.
    image-rendering:high-quality (Chrome) prioriza qualidade sobre
    velocidade no resample do zoom. */
+/* will-change:transform promove a imagem pra uma compositor layer
+   no GPU — pan/zoom (que mudam transform) ficam sem repaint na CPU,
+   muito mais fluidos. backface-visibility:hidden força sub-pixel
+   precision e elimina flicker em algumas GPUs. */
 .layer img{position:absolute;left:50%;top:50%;transform-origin:center center;
   user-select:none;-webkit-user-drag:none;pointer-events:none;max-width:none;
-  image-rendering:high-quality}
+  image-rendering:high-quality;
+  will-change:transform;backface-visibility:hidden}
 
 /* O TRUQUE PRINCIPAL DO SLIDER:
    clip-path:inset(top right bottom left) recorta o elemento.
@@ -648,6 +656,7 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
 .sidebar{flex:0 0 288px;background:var(--bg-1);border-left:1px solid var(--line);
   overflow-y:auto;transition:flex-basis var(--t-med);scrollbar-width:thin;
   scrollbar-color:var(--bg-3) transparent;display:flex;flex-direction:column;
+  contain:layout paint;
   /* position:relative pra que o .resizer-sidebar (position:absolute,
      left:-3px) se ancore na sidebar e não na viewport. */
   position:relative}
@@ -735,6 +744,7 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
       miniaturas embaixo. */
 .thumbstrip-wrap{flex:0 0 auto;background:linear-gradient(180deg,var(--bg-1),var(--bg));
   border-right:1px solid var(--line);position:relative;display:flex;flex-direction:column;
+  contain:layout paint;
   /* THUMB tokens (escalam com --thumb-h) */
   --thumb-h:78px;
   --num-fs:calc(var(--thumb-h) * 0.128);          /* 10px @ 78 */
@@ -1499,9 +1509,9 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
     -->
     <div class="view compare-view active" id="compareView">
       <!-- Camada do "antes": embaixo, sempre 100% visível. -->
-      <div class="layer layer-before"><img id="imgB" alt=""></div>
+      <div class="layer layer-before"><img id="imgB" alt="" decoding="async" fetchpriority="high"></div>
       <!-- Camada do "depois": em cima, clipada por --cut. -->
-      <div class="layer layer-after"><img id="imgA" alt=""></div>
+      <div class="layer layer-after"><img id="imgA" alt="" decoding="async" fetchpriority="high"></div>
       <!-- Badges fixos nos cantos superiores (modo compare). -->
       <div class="badge badge-before" data-i18n="badge.before">Antes</div>
       <div class="badge badge-after" data-i18n="badge.after">Depois</div>
@@ -1532,12 +1542,12 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
     -->
     <div class="view side-view" id="sideView">
       <div class="side-half side-before">
-        <div class="side-img-wrap"><img id="sideImgB" alt=""></div>
+        <div class="side-img-wrap"><img id="sideImgB" alt="" decoding="async"></div>
         <div class="badge badge-before" data-i18n="badge.before">Antes</div>
       </div>
       <div class="side-divider"></div>
       <div class="side-half side-after">
-        <div class="side-img-wrap"><img id="sideImgA" alt=""></div>
+        <div class="side-img-wrap"><img id="sideImgA" alt="" decoding="async"></div>
         <div class="badge badge-after" data-i18n="badge.after">Depois</div>
       </div>
     </div>
@@ -3695,14 +3705,21 @@ function startApp(DATA){
    *
    * @param {number} i
    */
+  // Token incrementado a cada load() — usado pra cancelar swaps obsoletos
+  // quando o usuário navega rapidamente (clica vários thumbs em sequência).
+  // Só o último load() vai realmente fazer o swap final.
+  let loadToken = 0;
+
   function load(i){
     // Wrap-around (indo antes do 0 vai pro último; depois do último volta ao 0).
     if (i < 0) i = DATA.length - 1;
     if (i >= DATA.length) i = 0;
     current = i;
     const item = DATA[i];
+    const myToken = ++loadToken;
     counterText.textContent = `${i+1} / ${DATA.length}`;
     activateThumb(i);
+    updateInfoPanel(item);
 
     // Estado PENDING: par ainda não foi processado (carga lazy em curso).
     // Mostra um overlay com spinner no viewer; quando o processamento
@@ -3713,30 +3730,69 @@ function startApp(DATA){
       imgA.removeAttribute('src');
       if (sideImgB) sideImgB.removeAttribute('src');
       if (sideImgA) sideImgA.removeAttribute('src');
-      updateInfoPanel(item);
       return;
     }
     compareView.classList.remove('is-pending');
 
-    // Usa as dimensões do "antes" pra dimensionar AMBAS as camadas.
-    natW = item.b.w;
-    natH = item.b.h;
-    imgB.src = item.b.src;
-    imgA.src = item.a.src;
-    imgB.style.width = natW + 'px';
-    imgB.style.height = natH + 'px';
-    imgA.style.width = natW + 'px';
-    imgA.style.height = natH + 'px';
-    sideImgB.src = item.b.src;
-    sideImgA.src = item.a.src;
-    measureViewer();
-    baseScale = computeBaseScale();
-    reset();
-    // Em modo solo, applySolo recalcula a posição correta (0 ou 100).
-    // Em compare, PRESERVAMOS o valor atual de cut entre fotos.
-    if (mode === 'solo') applySolo();
-    else clampCut();
-    updateInfoPanel(item);
+    // Pré-decodifica a nova imagem off-DOM ANTES de trocar o src no viewer.
+    // Sem isso, o browser exibe a imagem nova com as dimensões style.width/height
+    // ANTERIORES por alguns frames — fica esticada quando a orientação muda
+    // (vertical ↔ horizontal). Com .decode() + swap atômico (src + dimensões
+    // no MESMO frame), a transição fica sem flash visual.
+    const preB = new Image();
+    preB.src = item.b.src;
+    const preA = new Image();
+    preA.src = item.a.src;
+    Promise.all([
+      preB.decode().catch(() => null),
+      preA.decode().catch(() => null),
+    ]).then(() => {
+      // Cancela se o usuário já navegou pra outro par enquanto decodificava.
+      if (myToken !== loadToken) return;
+      // Swap atômico: dimensões + src no mesmo "tick" sincrono.
+      natW = item.b.w;
+      natH = item.b.h;
+      imgB.style.width = natW + 'px';
+      imgB.style.height = natH + 'px';
+      imgA.style.width = natW + 'px';
+      imgA.style.height = natH + 'px';
+      imgB.src = item.b.src;
+      imgA.src = item.a.src;
+      sideImgB.src = item.b.src;
+      sideImgA.src = item.a.src;
+      measureViewer();
+      baseScale = computeBaseScale();
+      reset();
+      // Em modo solo, applySolo recalcula a posição correta (0 ou 100).
+      // Em compare, PRESERVAMOS o valor atual de cut entre fotos.
+      if (mode === 'solo') applySolo();
+      else clampCut();
+      // Pré-carrega os vizinhos (N-1 e N+1) em background pra próxima
+      // navegação ficar instantânea — Image().decode() popula o cache do
+      // browser sem inserir no DOM.
+      preloadAdjacent(i);
+    });
+  }
+
+  /**
+   * Dispara decode em background dos pares adjacentes ao índice i.
+   * Não bloqueia nada — apenas aquece o cache de decode do browser pra
+   * que load(i±1) encontre as imagens prontas e troque instantaneamente.
+   */
+  function preloadAdjacent(i){
+    const adj = [(i + 1) % DATA.length, (i - 1 + DATA.length) % DATA.length];
+    adj.forEach(j => {
+      const it = DATA[j];
+      if (!it || it._pending || !it.b || !it.b.src) return;
+      const a = new Image();
+      a.src = it.b.src;
+      const b = new Image();
+      b.src = it.a.src;
+      // .decode() retorna uma promise; ignoramos resultado/erro — só
+      // queremos forçar o decode em background.
+      a.decode && a.decode().catch(() => {});
+      b.decode && b.decode().catch(() => {});
+    });
   }
 
   /**
@@ -4444,8 +4500,17 @@ function startApp(DATA){
   sidebar.addEventListener('pointercancel', endSheet);
 
   // Re-aplica o layout da sidebar quando a janela muda
-  // (ex.: rotação faz cruzar o breakpoint 901px).
-  window.addEventListener('resize', applySidebar);
+  // (ex.: rotação faz cruzar o breakpoint 901px). Debounced via rAF
+  // pra evitar N reflows durante drag contínuo do canto da janela —
+  // o browser pode disparar 'resize' a cada pixel arrastado.
+  let resizeRAF = 0;
+  window.addEventListener('resize', () => {
+    if (resizeRAF) return;
+    resizeRAF = requestAnimationFrame(() => {
+      resizeRAF = 0;
+      applySidebar();
+    });
+  });
 
   // Bloqueia o menu de contexto nas imagens — evita "Salvar como"
   // acidental e long-press quirks no mobile.

@@ -241,6 +241,33 @@ Vantagem: qualquer feature nova adicionada ao `index.html` é
 automaticamente herdada pelo `comparador.html` gerado, sem precisar
 atualizar o `_build.py`.
 
+## Performance e fluidez
+
+Algumas otimizações invisíveis ao usuário, mas importantes:
+
+- **Decode-then-swap atômico**: ao navegar entre fotos, a nova imagem é
+  pré-decodificada off-DOM via `HTMLImageElement.decode()` antes de
+  trocar o `src` no viewer. As dimensões (`style.width/height`) e o
+  `src` são atualizados no MESMO frame, eliminando o flash de "imagem
+  esticada" quando a orientação muda (vertical ↔ horizontal).
+- **Preload de pares adjacentes**: após carregar o par N, dispara
+  `decode()` em background dos pares N-1 e N+1. Quando o usuário
+  clica em "próxima/anterior", a troca é instantânea.
+- **`decoding="async"` + `fetchpriority="high"`** nas `<img>` do viewer:
+  hints pro browser não bloquear o main thread no decode.
+- **`will-change: transform` + `backface-visibility: hidden`** nas
+  camadas de imagem: promove pra compositor layer no GPU; pan/zoom
+  ficam fluidos sem repaint na CPU.
+- **`contain: layout paint`** em `.stage`, `.sidebar` e `.thumbstrip-wrap`:
+  isola regiões de paint — resize de um painel não força reflow nos
+  outros.
+- **Debounce via `requestAnimationFrame`** no listener de `resize` da
+  janela: arrastar o canto da janela dispara `applySidebar` no máximo
+  uma vez por frame, em vez de a cada pixel.
+- **Token de cancelamento** no `load()`: navegações rápidas (vários
+  cliques em sequência) cancelam decodes obsoletos — só o último vai
+  realmente swap.
+
 ## Persistência
 
 **ZERO.** Por design, o app não grava nada em `localStorage`,
