@@ -743,8 +743,11 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
      e o CSS max() é ignorado. */
   width:max(136px, calc(var(--thumb-h) + var(--strip-pad-x) * 2));
   height:100%}
+/* Padding horizontal reduzido (4px) pra que os thumbs ocupem o máximo
+   de largura possível dentro do strip; padding vertical mantém os
+   thumbs afastados das bordas top/bottom. */
 .thumbstrip{display:flex;flex-direction:column;gap:calc(var(--thumb-h) * 0.103);
-  padding:10px var(--strip-pad-x);overflow-y:auto;overflow-x:hidden;flex:1;min-height:0;
+  padding:10px 4px;overflow-y:auto;overflow-x:hidden;flex:1;min-height:0;
   scroll-behavior:smooth;scrollbar-width:thin;scrollbar-color:var(--bg-3) transparent}
 .thumbstrip::-webkit-scrollbar{width:6px}
 .thumbstrip::-webkit-scrollbar-thumb{background:var(--bg-3);border-radius:3px}
