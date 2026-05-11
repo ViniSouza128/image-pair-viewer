@@ -107,22 +107,30 @@ sumariza "X novo(s) par(es) · Y já estava(m) na sessão". Apenas
 arquivos com MIME `image/*` ou extensão de imagem são aceitos —
 outros tipos são descartados.
 
+## Carregamento progressivo
+
+Quando você seleciona um lote de fotos, o app abre **imediatamente**
+com miniaturas em shimmer (animação de carregamento) — sem tela de
+loading separada. Os pares são processados em background, e cada
+miniatura "se resolve" assim que sua imagem está pronta. Se você
+clicar num par ainda pendente, o viewer mostra um spinner até a
+imagem ficar disponível.
+
 ## Recolher painéis e redimensionar
 
-Cada painel pode ser recolhido independentemente, expandindo a visão
-central:
-
-- **Topbar** — botão `⌃` no canto direito da topbar; atalho **`T`**
-- **Strip** (faixa de miniaturas) — atalho **`B`**
-- **Sidebar** (painel direito) — botão `›` no header da sidebar ou
-  pelo botão de Info na topbar; atalho **`I`**
-
-Quando recolhidos, uma aba clicável aparece na borda correspondente
-pra reabrir. O estado é persistido entre sessões.
+Um **único botão** no canto inferior direito da view central recolhe
+TODOS os painéis simultaneamente (topbar, strip, sidebar), expandindo
+o viewer pra ocupar a tela toda. Clicar de novo expande tudo de volta.
+O estado é persistido entre sessões.
 
 **Resize**: arraste a borda interna da sidebar (esquerda) ou do
-strip (topo) pra ajustar tamanho. O tamanho fica salvo em
-`localStorage`.
+strip (topo) pra ajustar tamanho. **Duplo clique** na borda volta
+ao tamanho padrão. O tamanho fica salvo em `localStorage`.
+
+Ao aumentar a altura da strip, **tudo escala junto** proporcionalmente:
+miniaturas maiores, botões maiores, textos maiores, bolinha de
+seleção maior — controlado por uma CSS variable única (`--thumb-h`).
+Encolher = tudo encolhe junto.
 
 `F11` (tela cheia nativa do navegador) e a tecla `F` (Fullscreen API
 via JS) continuam funcionando paralelamente — não interferem entre si.
@@ -143,8 +151,10 @@ touch). Comportamento estilo Windows Explorer / Finder:
 - **Esc** → limpa seleção
 - **Long-press** ~500 ms no thumb (mobile) → alterna seleção
 
-Quando há ≥1 par selecionado, uma barra inline aparece à direita do
-botão Ordenar mostrando contagem + Remover + Limpar.
+O botão **Remover** está sempre visível na strip-tools. Quando
+nenhum par está selecionado, ele remove o par **atualmente aberto**
+no viewer. Quando há seleção, remove os selecionados (com contagem
+no label se 2+).
 
 ## Idioma
 

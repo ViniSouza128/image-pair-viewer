@@ -417,6 +417,19 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
 .compare-view.solo{cursor:default}
 /* No modo solo, se tem zoom, o cursor vira grab (= pode arrastar pra pan). */
 .compare-view.solo.scale-zoom{cursor:grab}
+/* Estado .is-pending: par ainda processando em background. Overlay
+   escuro com spinner centralizado. ::before = backdrop escurinho;
+   ::after = anel girando. Ambos pointer-events:none pra deixar
+   eventuais cliques passarem pro viewer (mas como não há imagens,
+   nada vai mesmo). */
+.compare-view.is-pending::before{content:'';position:absolute;inset:0;
+  background:radial-gradient(circle at center,rgba(8,9,12,.55) 0%,rgba(8,9,12,.85) 80%);
+  z-index:10;pointer-events:none}
+.compare-view.is-pending::after{content:'';position:absolute;top:50%;left:50%;
+  width:54px;height:54px;margin:-27px 0 0 -27px;
+  border:3px solid var(--bg-3);border-top-color:var(--accent);
+  border-radius:50%;animation:spin .9s linear infinite;z-index:11;
+  pointer-events:none}
 
 /* ----- LAYERS (camadas das imagens) -----
    Duas camadas empilhadas, cada uma com sua imagem. A camada de
@@ -601,7 +614,7 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
    scrollbar customizado (Webkit + Firefox) pra não quebrar a estética
    dark com a barra cinza-claro padrão do SO.
    ========================================================================== */
-.sidebar{flex:0 0 320px;background:var(--bg-1);border-left:1px solid var(--line);
+.sidebar{flex:0 0 288px;background:var(--bg-1);border-left:1px solid var(--line);
   overflow-y:auto;transition:flex-basis var(--t-med);scrollbar-width:thin;
   scrollbar-color:var(--bg-3) transparent;display:flex;flex-direction:column;
   /* position:relative pra que o .resizer-sidebar (position:absolute,
@@ -660,27 +673,45 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
 .info-row .iv.iv-pending{color:var(--fg-3);font-style:italic}
 
 /* ==========================================================================
-   THUMBSTRIP (faixa de miniaturas)
+   THUMBSTRIP (faixa de miniaturas) — escalonável proporcionalmente
 
-   Faixa horizontal scrollável no rodapé do app, mostrando todas as
-   fotos do lote. Clique numa miniatura = navega pro par.
+   Todas as dimensões da strip (thumbs, ferramentas, textos, ícones)
+   derivam de UMA variável CSS: --thumb-h (altura/largura da miniatura).
+   Quando o usuário arrasta o resize handle pra aumentar/diminuir a
+   altura da faixa, o JS atualiza --thumb-h e TUDO escala junto:
+     - tamanho das miniaturas
+     - tamanho da bolinha de seleção
+     - tamanho do número do ID
+     - altura/font dos botões da strip-tools
+     - largura da strip-tools
 
-   flex:0 0 auto = não cresce/encolhe, ocupa apenas a altura natural
-   das miniaturas + padding. overflow-x:auto = scroll horizontal
-   quando há mais miniaturas que cabe na tela.
-   scroll-behavior:smooth pra que scrollIntoView() (chamado em JS
-   quando navega) anime suavemente em vez de pular instantâneo.
+   Default --thumb-h = 78px (igual ao tamanho original). Mobile
+   override pra 62px. O resize handler sobrescreve via style inline.
    ========================================================================== */
 .thumbstrip-wrap{flex:0 0 auto;background:linear-gradient(180deg,var(--bg-1),var(--bg));
-  border-top:1px solid var(--line);position:relative;display:flex;align-items:center}
-.thumbstrip{display:flex;gap:8px;padding:10px 14px;overflow-x:auto;flex:1;
+  border-top:1px solid var(--line);position:relative;display:flex;align-items:center;
+  /* Sistema de tokens derivados — TUDO escala com --thumb-h. */
+  --thumb-h:78px;
+  --tool-h:calc(var(--thumb-h) * 0.385);          /* 30px @ 78 */
+  --tool-fs:calc(var(--thumb-h) * 0.154);         /* 12px @ 78 */
+  --tool-icon:calc(var(--thumb-h) * 0.18);        /* 14px @ 78 */
+  --tool-gap:calc(var(--thumb-h) * 0.077);        /* 6px @ 78 */
+  --tool-pad:calc(var(--thumb-h) * 0.154);        /* 12px @ 78 */
+  --tools-w:calc(var(--thumb-h) * 1.9);           /* 148px @ 78 */
+  --num-fs:calc(var(--thumb-h) * 0.128);          /* 10px @ 78 */
+  --sel-size:calc(var(--thumb-h) * 0.282);        /* 22px @ 78 */
+  --sel-icon:calc(var(--thumb-h) * 0.167);        /* 13px @ 78 */
+  --thumb-radius:calc(var(--thumb-h) * 0.103);    /* 8px @ 78 */
+  height:calc(var(--thumb-h) + 22px)}
+.thumbstrip{display:flex;gap:calc(var(--thumb-h) * 0.103);padding:10px 14px;overflow-x:auto;flex:1;
   scroll-behavior:smooth;scrollbar-width:thin;scrollbar-color:var(--bg-3) transparent}
 .thumbstrip::-webkit-scrollbar{height:6px}
 .thumbstrip::-webkit-scrollbar-thumb{background:var(--bg-3);border-radius:3px}
 
 /* Cada thumbnail. Border-color transparent inicial pra a borda do
    estado .active não mexer no layout (evita "saltinho" ao navegar). */
-.thumb{flex:0 0 auto;width:78px;height:78px;border-radius:8px;overflow:hidden;cursor:pointer;
+.thumb{flex:0 0 auto;width:var(--thumb-h);height:var(--thumb-h);
+  border-radius:var(--thumb-radius);overflow:hidden;cursor:pointer;
   border:2px solid transparent;background:var(--bg-2);position:relative;
   transition:transform var(--t-fast),border-color var(--t-fast)}
 /* object-fit:cover = preenche o quadrado, cortando o que sobra (em vez
@@ -689,10 +720,22 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
 .thumb:hover{transform:translateY(-2px)}
 .thumb.active{border-color:var(--accent);box-shadow:0 0 0 2px rgba(255,174,60,.2)}
 
+/* Placeholder (estado .pending) — shimmer animado enquanto a foto
+   ainda não foi processada. Permite mostrar o app imediatamente. */
+.thumb.pending img{display:none}
+.thumb.pending{background:linear-gradient(100deg,var(--bg-2) 30%,var(--bg-3) 50%,var(--bg-2) 70%);
+  background-size:200% 100%;animation:shimmer 1.6s infinite linear}
+@keyframes shimmer{from{background-position:200% 0}to{background-position:-200% 0}}
+/* Estado .failed — par com erro de processamento. Cor avermelhada. */
+.thumb.failed{background:rgba(255,80,80,.12);animation:none}
+.thumb.failed::after{content:"!";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  color:#ff8e8e;font-weight:700;font-size:calc(var(--thumb-h) * 0.3)}
+
 /* Pequena tag com o ID (4 dígitos) sobre cada thumb — label de
    identificação rápida. Monospace pra alinhar dígitos. */
-.thumb .num{position:absolute;left:5px;top:4px;font-size:10px;font-weight:700;color:#fff;
-  background:rgba(0,0,0,.55);padding:1px 5px;border-radius:4px;
+.thumb .num{position:absolute;left:5px;top:4px;font-size:var(--num-fs);font-weight:700;color:#fff;
+  background:rgba(0,0,0,.55);padding:1px calc(var(--num-fs) * 0.5);
+  border-radius:calc(var(--num-fs) * 0.4);
   font-family:ui-monospace,Consolas,monospace}
 /* Bolinha de seleção (.sel-toggle) — toggle redondo no canto sup. direito.
 
@@ -709,7 +752,10 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
    Estados visuais:
      - vazio (não selecionado): anel branco translúcido + fundo escurinho
      - cheio (selected): preenchido com cor de accent + check dentro */
-.thumb .sel-toggle{position:absolute;top:6px;right:6px;width:22px;height:22px;
+/* Bolinha escala com --sel-size (derivado de --thumb-h). */
+.thumb .sel-toggle{position:absolute;top:calc(var(--thumb-h) * 0.077);
+  right:calc(var(--thumb-h) * 0.077);
+  width:var(--sel-size);height:var(--sel-size);
   border-radius:50%;border:2px solid rgba(255,255,255,.85);
   background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;
   cursor:pointer;z-index:3;opacity:.6;padding:0;
@@ -720,7 +766,7 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
 .thumb .sel-toggle::before{content:'';position:absolute;inset:-7px;border-radius:50%}
 .thumb:hover .sel-toggle{opacity:1}
 .thumb .sel-toggle:hover{transform:scale(1.12);opacity:1}
-.thumb .sel-toggle svg{width:13px;height:13px;color:#15161b;opacity:0;
+.thumb .sel-toggle svg{width:var(--sel-icon);height:var(--sel-icon);color:#15161b;opacity:0;
   transition:opacity .1s;pointer-events:none}
 .thumb.selected .sel-toggle{opacity:1;background:var(--accent);border-color:var(--accent)}
 .thumb.selected .sel-toggle svg{opacity:1}
@@ -748,40 +794,44 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
    width:140px é fixo pra que os botões fiquem alinhados em coluna
    regardless do label. flex-direction:column empilha.
    ========================================================================== */
-.strip-tools{display:flex;flex-direction:column;gap:6px;padding:10px 12px;
+/* Strip-tools escalam com --thumb-h (declarado em .thumbstrip-wrap).
+   Width: 1.9x a altura do thumb (148px @ 78). Padding e gaps escalam.
+   Quando o usuário aumenta o strip via resize, a coluna inteira de
+   tools cresce junto — botões maiores, fontes maiores, ícones maiores. */
+.strip-tools{display:flex;flex-direction:column;
+  gap:calc(var(--thumb-h) * 0.077);
+  padding:calc(var(--thumb-h) * 0.128) var(--tool-gap);
   flex-shrink:0;position:relative;height:100%;
-  border-right:1px solid var(--line-2);width:148px;
+  border-right:1px solid var(--line-2);width:var(--tools-w);
   justify-content:center}
 .strip-tools[hidden]{display:none}
-.strip-tool{display:inline-flex;align-items:center;gap:8px;padding:0 12px;height:30px;
-  background:var(--bg-2);border:1px solid var(--line);border-radius:7px;
-  color:var(--fg);cursor:pointer;font-size:12px;font-family:inherit;
+.strip-tool{display:inline-flex;align-items:center;
+  gap:calc(var(--tool-fs) * 0.6);
+  padding:0 var(--tool-pad);height:var(--tool-h);
+  background:var(--bg-2);border:1px solid var(--line);
+  border-radius:calc(var(--tool-h) * 0.23);
+  color:var(--fg);cursor:pointer;font-size:var(--tool-fs);font-family:inherit;
   font-weight:500;transition:background var(--t-fast),border-color var(--t-fast),color var(--t-fast),opacity var(--t-fast);
   white-space:nowrap;width:100%;text-align:left}
 .strip-tool:hover{background:var(--bg-3);border-color:var(--bg-3)}
-.strip-tool svg{width:14px;height:14px;flex-shrink:0}
+.strip-tool svg{width:var(--tool-icon);height:var(--tool-icon);flex-shrink:0}
 .strip-tool .lbl{flex:1;overflow:hidden;text-overflow:ellipsis}
-.strip-tool.icon-only{padding:0;width:34px;justify-content:center}
+.strip-tool.icon-only{padding:0;width:var(--tool-h);justify-content:center}
 .strip-tool.danger{color:#ff8e8e;background:rgba(255,80,80,.08);border-color:rgba(255,80,80,.28)}
 .strip-tool.danger:hover{background:rgba(255,80,80,.16);color:#ffabab;border-color:rgba(255,80,80,.5)}
-/* Disabled (Remover sem seleção): mantém cor vermelha mas apagada
-   pra indicar "esse é o botão de remover, só não dá pra usar agora". */
+/* Disabled: opacity reduzida + cursor not-allowed. */
 .strip-tool:disabled{opacity:.42;cursor:not-allowed}
 .strip-tool:disabled:hover{background:rgba(255,80,80,.08);color:#ff8e8e;border-color:rgba(255,80,80,.28);transform:none}
-.strip-tool .chev{width:10px;height:10px;opacity:.7}
+.strip-tool .chev{width:calc(var(--tool-icon) * 0.7);height:calc(var(--tool-icon) * 0.7);opacity:.7}
 
-/* Split-button da ordenação: lado esquerdo (sort-main) cicla o
-   critério, direito (sort-dir) inverte a direção. Visualmente
-   parecem um único botão graças aos border-radius assimétricos +
-   ausência do border do meio. */
+/* Split-button da ordenação. Largura da direita == altura do botão
+   (quadrado), pra ficar visualmente proporcional ao escalonamento. */
 .sort-row{display:flex;width:100%;gap:0}
 .sort-row .sort-main{flex:1;border-top-right-radius:0;border-bottom-right-radius:0;
-  border-right:none;padding-right:8px}
-.sort-row .sort-dir{flex:0 0 30px;width:30px;padding:0;justify-content:center;
+  border-right:none;padding-right:calc(var(--tool-pad) * 0.6)}
+.sort-row .sort-dir{flex:0 0 var(--tool-h);width:var(--tool-h);padding:0;justify-content:center;
   border-top-left-radius:0;border-bottom-left-radius:0}
-/* A seta inverte direção via rotate(180deg) quando .desc.
-   Mais notável que o restante do botão: cor accent e maior. */
-.sort-row .sort-dir svg{width:14px;height:14px;color:var(--accent);
+.sort-row .sort-dir svg{width:var(--tool-icon);height:var(--tool-icon);color:var(--accent);
   transition:transform .18s cubic-bezier(.4,1.4,.5,1)}
 .sort-row .sort-dir.desc svg{transform:rotate(180deg)}
 /* Sort menu — popup ACIMA do botão (bottom positioned).
@@ -805,14 +855,9 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
   font-feature-settings:"tnum";white-space:nowrap}
 
 @media (max-width:900px){
-  /* Mobile: strip-tools mais compacta (largura menor + botões menores).
-     Mantém a coluna vertical, só aperta tudo. */
-  .strip-tools{width:118px;padding:8px;gap:4px}
-  .strip-tool{padding:0 8px;height:28px;font-size:11px;gap:6px}
-  .strip-tool .lbl{font-size:11px}
-  .strip-tool svg{width:13px;height:13px}
-  .sort-row .sort-dir{flex:0 0 26px;width:26px}
-  .sort-menu{left:8px;min-width:200px}
+  /* Mobile: thumb default menor → todas as vars derivadas escalam
+     automaticamente (strip-tools fica menor, botões menores, etc.). */
+  .thumbstrip-wrap{--thumb-h:62px}
 }
 
 /* ==========================================================================
@@ -994,60 +1039,39 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
   transition:opacity var(--t-med)}
 
 /* ==========================================================================
-   COLLAPSE PANELS — esconder topbar / strip / sidebar independentemente
+   COLLAPSE-ALL — um único botão recolhe TODOS os painéis ao mesmo tempo
 
-   Classes aplicadas em .app pelo JS quando o usuário aciona o collapse:
-     .topbar-collapsed  — esconde a topbar
-     .strip-collapsed   — esconde o thumbstrip-wrap
-     .sidebar-collapsed — esconde a sidebar (.sidebar.collapsed já fazia
-                          isso via flex-basis:0 — preservado)
+   Estado: classe `.all-collapsed` no .app esconde topbar, strip E sidebar
+   simultaneamente. A view central (.stage) expande pra ocupar a tela
+   toda. O botão fica no canto inferior direito de .stage e se mantém
+   visível em ambos os estados — clicar de novo expande tudo de volta.
 
-   Quando colapsadas, "show tabs" (tabinhos clicáveis nas bordas) ficam
-   visíveis pro usuário reabrir o painel. Sempre presentes no DOM,
-   mas display:none quando o painel está aberto.
+   Não existem mais botões individuais de recolher por painel — foram
+   removidos a pedido do usuário. Todos atalhos do app continuam
+   funcionando mesmo com painéis recolhidos (setas pra navegar, zoom
+   por scroll, atalhos de teclado).
 
-   F11 do navegador continua funcionando porque NÃO interceptamos a
-   tecla (só interceptamos 'F' minúsculo/maiúsculo que usa a Fullscreen
-   API). F11 e o JS fullscreen são caminhos paralelos pro mesmo efeito.
+   F11 do navegador continua intocado — só interceptamos 'F' minúsculo
+   (que usa a Fullscreen API). F11 e JS fullscreen são caminhos paralelos.
    ========================================================================== */
-.app.topbar-collapsed .topbar{display:none}
-.app.strip-collapsed .thumbstrip-wrap{display:none}
+.app.all-collapsed .topbar,
+.app.all-collapsed .thumbstrip-wrap,
+.app.all-collapsed .sidebar{display:none}
 
-/* Show tabs — pequenas abas clicáveis nas bordas pra expandir.
-   Posicionadas em .main pra que estejam no contexto certo (acima dos
-   panels colapsados quando estes ficam display:none). */
-.show-tab{position:absolute;z-index:20;background:rgba(20,21,26,.85);
-  border:1px solid var(--line);color:var(--fg-2);cursor:pointer;
-  display:none;align-items:center;justify-content:center;
-  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
-  transition:background var(--t-fast),color var(--t-fast),width var(--t-fast),height var(--t-fast)}
-.show-tab:hover{background:rgba(35,38,48,.95);color:var(--fg)}
-.show-tab svg{width:14px;height:14px}
-/* Tab do topo (quando topbar colapsada) — descendo do topo do .main */
-.show-tab-topbar{top:0;left:50%;transform:translateX(-50%);
-  width:60px;height:18px;border-top:none;border-radius:0 0 10px 10px}
-.show-tab-topbar:hover{height:22px}
-/* Tab de baixo (quando strip colapsada) */
-.show-tab-strip{bottom:0;left:50%;transform:translateX(-50%);
-  width:60px;height:18px;border-bottom:none;border-radius:10px 10px 0 0}
-.show-tab-strip:hover{height:22px}
-/* Tab lateral (quando sidebar colapsada). Vertical. */
-.show-tab-sidebar{top:50%;right:0;transform:translateY(-50%);
-  width:18px;height:60px;border-right:none;border-radius:10px 0 0 10px}
-.show-tab-sidebar:hover{width:22px}
-.app.topbar-collapsed .show-tab-topbar{display:flex}
-.app.strip-collapsed .show-tab-strip{display:flex}
-.app.sidebar-collapsed-mark .show-tab-sidebar{display:flex}
-
-/* Botão de collapse em cada painel — pequeno, discreto.
-   Topbar: à direita das ações. Strip: como uma chevron no topo dos
-   strip-tools. Sidebar: ao lado do título da side-header. */
-.panel-collapse{width:24px;height:24px;background:transparent;border:none;
-  color:var(--fg-3);cursor:pointer;border-radius:5px;display:flex;
-  align-items:center;justify-content:center;padding:0;
-  transition:background var(--t-fast),color var(--t-fast)}
-.panel-collapse:hover{background:var(--bg-2);color:var(--fg)}
-.panel-collapse svg{width:14px;height:14px}
+/* Botão único de collapse-all (canto inf. direito da stage). */
+.collapse-all{position:absolute;right:14px;bottom:14px;z-index:7;
+  width:38px;height:38px;border-radius:8px;
+  background:rgba(15,16,20,.78);border:1px solid rgba(255,255,255,.1);
+  color:#fff;display:flex;align-items:center;justify-content:center;
+  cursor:pointer;padding:0;
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  transition:background var(--t-fast),transform var(--t-fast)}
+.collapse-all:hover{background:rgba(35,38,48,.95);transform:scale(1.06)}
+.collapse-all svg{width:18px;height:18px}
+/* Ícones: mostra "encolher" por padrão; "expandir" quando colapsado. */
+.collapse-all .icon-expand{display:none}
+.app.all-collapsed .collapse-all .icon-collapse{display:none}
+.app.all-collapsed .collapse-all .icon-expand{display:inline-block}
 
 /* ==========================================================================
    RESIZE HANDLES — bordas internas drag-able pra ajustar tamanho
@@ -1274,10 +1298,6 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
         </span>
       </button>
     </div>
-    <!-- Toggle do painel de informações (sidebar/bottom-sheet). -->
-    <button class="icon-btn" id="btnInfo" data-i18n-title="ui.info" data-i18n-aria="ui.info" title="Informações (I)" aria-label="Informações">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-    </button>
     <!-- Tela cheia (Fullscreen API). -->
     <button class="icon-btn" id="btnFs" data-i18n-title="ui.fullscreen" data-i18n-aria="ui.fullscreen" title="Tela cheia (F)" aria-label="Tela cheia">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
@@ -1285,11 +1305,6 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
     <!-- Modal de ajuda com a tabela completa de atalhos/gestos. -->
     <button class="icon-btn" id="btnHelp" data-i18n-title="ui.help" data-i18n-aria="ui.help" title="Ajuda (?)" aria-label="Ajuda">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-    </button>
-    <!-- Recolher topbar (chevron-up) — esconde a barra; show-tab no
-         topo do .main aparece pra reabrir. Atalho de teclado: T. -->
-    <button class="panel-collapse" id="collapseTopbarBtn" data-i18n-title="ui.collapseTopbar" title="Recolher topo" aria-label="Recolher">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
     </button>
   </div>
 </header>
@@ -1376,16 +1391,14 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
     </button>
 
-    <!-- Show tabs (botões pra reabrir painel colapsado).
-         Exibidos via classe no .app (topbar-collapsed, etc.). -->
-    <button class="show-tab show-tab-topbar" id="showTopbarBtn" data-i18n-title="ui.showTopbar" title="Mostrar topo" aria-label="Mostrar topo">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-    </button>
-    <button class="show-tab show-tab-strip" id="showStripBtn" data-i18n-title="ui.showStrip" title="Mostrar fotos" aria-label="Mostrar fotos">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
-    </button>
-    <button class="show-tab show-tab-sidebar" id="showSidebarBtn" data-i18n-title="ui.showSidebar" title="Mostrar painel" aria-label="Mostrar painel">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+    <!-- Botão ÚNICO de collapse-all (canto inferior direito da stage).
+         Click: alterna entre "tudo expandido" e "tudo colapsado".
+         Ícones internos: o que NÃO está em vigor fica display:none. -->
+    <button class="collapse-all" id="collapseAllBtn" data-i18n-title="ui.collapseAll" title="Recolher painéis" aria-label="Recolher / expandir painéis">
+      <!-- Icon collapse (default: 4 setas pra dentro — encolher) -->
+      <svg class="icon-collapse" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+      <!-- Icon expand (quando colapsado: 4 setas pra fora — expandir) -->
+      <svg class="icon-expand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
     </button>
 
     <!--
@@ -1431,11 +1444,7 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
       <div class="side-header">
         <!-- Título: nome do arquivo "antes". Atualizado em JS por load(). -->
         <h2 id="pairTitle">—</h2>
-        <!-- Recolher sidebar (chevron-right) — atalho desktop. -->
-        <button class="panel-collapse" id="collapseSidebarBtn" data-i18n-title="ui.collapseSidebar" title="Recolher painel" aria-label="Recolher">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-        </button>
-        <!-- X de fechar (visível só em mobile). -->
+        <!-- X de fechar (visível só em mobile — fecha o bottom sheet). -->
         <button class="side-close" id="sidebarClose" data-i18n-aria="sidebar.close" aria-label="Fechar painel">×</button>
       </div>
       <!-- Subtítulo: "ID 0093". Cor de accent no <span> pra destaque. -->
@@ -1802,12 +1811,8 @@ const I18N = {
     'ui.openMore': 'Abrir fotos',
     'ui.sort.cycle': 'Trocar critério de ordenação',
     'ui.sort.dir': 'Inverter ordem (crescente/decrescente)',
-    'ui.collapseTopbar': 'Recolher barra de cima',
-    'ui.collapseStrip': 'Recolher faixa de fotos',
-    'ui.collapseSidebar': 'Recolher painel de informações',
-    'ui.showTopbar': 'Mostrar barra de cima',
-    'ui.showStrip': 'Mostrar faixa de fotos',
-    'ui.showSidebar': 'Mostrar painel de informações',
+    'ui.collapseAll': 'Recolher / expandir painéis',
+    'err.exportPending': 'Aguarde as fotos terminarem de carregar antes de exportar.',
   },
   'en-US': {
     'upload.instruction': 'Upload your set of photos — originals and edited versions, all together. Pairs are identified automatically from filenames.',
@@ -1900,12 +1905,8 @@ const I18N = {
     'ui.openMore': 'Open photos',
     'ui.sort.cycle': 'Cycle sort criterion',
     'ui.sort.dir': 'Toggle direction (asc/desc)',
-    'ui.collapseTopbar': 'Collapse top bar',
-    'ui.collapseStrip': 'Collapse photos strip',
-    'ui.collapseSidebar': 'Collapse info panel',
-    'ui.showTopbar': 'Show top bar',
-    'ui.showStrip': 'Show photos strip',
-    'ui.showSidebar': 'Show info panel',
+    'ui.collapseAll': 'Collapse / expand panels',
+    'err.exportPending': 'Wait for photos to finish loading before exporting.',
   },
 };
 
@@ -2505,13 +2506,60 @@ async function processPair(pair){
 }
 
 /**
- * Pipeline completo: filtrar imagens -> parear -> carregar tudo.
+ * Cria um "placeholder item" — mesmo formato do DATA[i] mas SEM as
+ * imagens decodificadas. Marcado com _pending:true pra UI saber que
+ * ainda não terminou. Guarda referência ao File pair pra o
+ * processamento async depois.
+ */
+function makePlaceholder(pair){
+  return {
+    id: pair.id,
+    b: { name: pair.before.name, src: null, w: 0, h: 0,
+         size: fmtSize(pair.before.size), lastModified: pair.before.lastModified || 0 },
+    a: { name: pair.after.name, src: null, w: 0, h: 0,
+         size: fmtSize(pair.after.size), lastModified: pair.after.lastModified || 0 },
+    t: null, exif: {},
+    insertedAt: ++_insertCounter,
+    _pending: true,
+    _pair: pair,
+  };
+}
+
+/** Callback registrado por startApp — chamado pra cada par processado. */
+let _onPairProcessed = null;
+
+/**
+ * Processa pares em background, sequencialmente. Quando cada termina,
+ * notifica o app via _onPairProcessed. Se um par falha, marca como
+ * failed mas continua o resto.
+ */
+async function processInBackground(placeholders){
+  for (const ph of placeholders){
+    try {
+      const processed = await processPair(ph._pair);
+      if (_onPairProcessed) _onPairProcessed(ph.id, processed);
+    } catch(err){
+      console.warn('Failed to process pair', ph.id, err);
+      if (_onPairProcessed) _onPairProcessed(ph.id, null);
+    }
+  }
+}
+
+/**
+ * Pipeline ATUALIZADO — lazy/progressive:
  *
- * Dois modos:
- *   - Inicial: startApp(data) sobe a UI do comparador.
- *   - Append (opts.append=true): delega pro callback _onAppendBatch
- *     que o startApp registrou — pares são integrados na sessão
- *     existente sem perder estado.
+ *   1. Detecta pares pelos nomes (rápido, síncrono).
+ *   2. Cria placeholders pra TODOS os pares e sobe a UI imediatamente.
+ *   3. Inicia processamento em background — cada par que termina é
+ *      "preenchido" no slot do placeholder via callback.
+ *
+ * O usuário vê o app aparecer com miniaturas em shimmer, e elas se
+ * resolvem progressivamente. Percepção: app rápido e responsivo,
+ * mesmo com lotes grandes.
+ *
+ * Modos:
+ *   - Inicial: chama startApp(placeholders) e inicia background.
+ *   - Append (opts.append=true): delega placeholders ao app rodando.
  *
  * @param {FileList|File[]} fileList
  * @param {{append?:boolean}} [opts]
@@ -2521,9 +2569,6 @@ async function handleFiles(fileList, opts){
   const append = !!(opts.append && _onAppendBatch);
   clearError();
 
-  // Filtra só extensões reconhecidas; também aceita por MIME type
-  // (alguns navegadores omitem extensão em drag-and-drop de fontes
-  // exóticas, mas preenchem file.type).
   const files = [...fileList].filter(f => IMG_RE.test(f.name) || (f.type && f.type.startsWith('image/')));
   if (files.length < 2){
     if (!append) showError(t('err.fewFiles'));
@@ -2535,52 +2580,22 @@ async function handleFiles(fileList, opts){
     return;
   }
 
-  // Mostra a tela de loading (cobre upload no init; cobre app no append).
-  if (!append) uploadScreen.hidden = true;
-  loadingScreen.hidden = false;
-  loadingFill.style.width = '0%';
-  loadingText.textContent = append
-    ? t('notif.adding')
-    : t('load.reading', { n: pairs.length });
-
-  const data = [];
-  // Processa par a par, sequencialmente, pra dar feedback visual e
-  // não saturar o decoder com 50+ imagens em paralelo.
-  for (let i = 0; i < pairs.length; i++){
-    const p = pairs[i];
-    loadingFill.style.width = `${(i / pairs.length) * 100}%`;
-    loadingText.textContent = t('load.processing', { i: i+1, n: pairs.length, id: p.id });
-    try {
-      data.push(await processPair(p));
-    } catch(err){
-      // Não interrompe o lote por causa de um par com problema.
-      console.warn('Skipped pair', p.id, err);
-    }
-  }
-  loadingFill.style.width = '100%';
+  // Cria placeholders pra TODOS os pares — não há fase de "loading screen".
+  const placeholders = pairs.map(makePlaceholder);
 
   if (append){
-    // Modo append: delega pro app rodando. Ele decide o que filtrar
-    // (duplicados por ID) e como reagir.
-    setTimeout(() => {
-      loadingScreen.hidden = true;
-      _onAppendBatch(data);
-    }, 150);
+    // App já está rodando: delega pares ao callback. O app insere
+    // os placeholders na strip e dispara o processamento background.
+    _onAppendBatch(placeholders);
+    processInBackground(placeholders);
     return;
   }
 
-  if (!data.length){
-    // Volta pra tela de upload com aviso.
-    loadingScreen.hidden = true;
-    uploadScreen.hidden = false;
-    showError(t('err.loadFail'));
-    return;
-  }
-  // Pequeno timeout pra a animação da barra terminar visualmente.
-  setTimeout(() => {
-    loadingScreen.hidden = true;
-    startApp(data);
-  }, 150);
+  // Modo inicial: esconde upload, sobe o app DIRETO com placeholders.
+  uploadScreen.hidden = true;
+  loadingScreen.hidden = true;  // não usamos mais a tela de loading
+  startApp(placeholders);
+  processInBackground(placeholders);
 }
 
 /* ---------------------------------------------------------------------------
@@ -2868,10 +2883,17 @@ function startApp(DATA){
     strip.innerHTML = '';
     DATA.forEach((item, i) => {
       const tEl = document.createElement('div');
-      tEl.className = 'thumb' + (selection.has(i) ? ' selected' : '');
+      // Classes: .pending = ainda processando (mostra shimmer);
+      //          .failed  = erro ao processar; .selected = selecionado.
+      let cls = 'thumb';
+      if (item._pending) cls += ' pending';
+      if (item._failed) cls += ' failed';
+      if (selection.has(i)) cls += ' selected';
+      tEl.className = cls;
       tEl.dataset.i = i;
+      const src = item.t || (item.b && item.b.src) || '';
       tEl.innerHTML =
-        `<img loading="lazy" src="${item.t || item.b.src}" alt="">` +
+        `<img loading="lazy"${src ? ` src="${src}"` : ''} alt="">` +
         `<span class="num">${item.id}</span>` +
         `<button class="sel-toggle" tabindex="-1" aria-label="${t('ui.select')}">` +
           `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>` +
@@ -2970,22 +2992,20 @@ function startApp(DATA){
   const removeLabel = $('removeLabel');
 
   /**
-   * Sincroniza a UI com o Set de seleção:
-   *   - atualiza disabled e label do botão Remover
-   *   - reflete classe .selected em cada .thumb
+   * Sincroniza a UI com o Set de seleção. O botão Remover:
+   *   - 0 selecionado: ATIVO; remove o par atualmente aberto. Label "Remover".
+   *   - 1 selecionado: ATIVO; remove o selecionado. Label "Remover".
+   *   - 2+ selecionados: ATIVO; remove todos. Label "Remover (N)".
+   *   - Sem fotos no DATA: desativado.
+   * Esse comportamento permite que o botão seja sempre útil — mesmo
+   * sem seleção, ele tem uma ação razoável (remover a foto atual).
    */
   function updateSelectionUI(){
     const n = selection.size;
-    if (n === 0){
-      removeBtn.disabled = true;
-      removeLabel.textContent = t('ui.remove');
-    } else {
-      removeBtn.disabled = false;
-      // 2+ → "Remover (5)". 1 → só "Remover".
-      removeLabel.textContent = n >= 2
-        ? t('ui.remove') + ' (' + n + ')'
-        : t('ui.remove');
-    }
+    removeBtn.disabled = DATA.length === 0;
+    removeLabel.textContent = n >= 2
+      ? t('ui.remove') + ' (' + n + ')'
+      : t('ui.remove');
     document.querySelectorAll('.thumb').forEach((el, idx) => {
       el.classList.toggle('selected', selection.has(idx));
     });
@@ -3015,8 +3035,12 @@ function startApp(DATA){
   }
 
   async function removeSelected(){
-    if (!selection.size) return;
-    const n = selection.size;
+    if (!DATA.length) return;
+    // Sem seleção? Remove a foto atual. Com seleção? Remove os marcados.
+    const indices = selection.size > 0
+      ? [...selection]
+      : [current];
+    const n = indices.length;
     const ok = await showConfirm({
       title: t('confirm.remove.title'),
       message: t('confirm.remove.msg', { n }),
@@ -3025,13 +3049,16 @@ function startApp(DATA){
     });
     if (!ok) return;
     // Itera DESC pra não invalidar índices durante o splice.
-    const toRemove = [...selection].sort((a,b) => b - a);
+    const toRemove = indices.slice().sort((a,b) => b - a);
     const curId = DATA[current] && DATA[current].id;
+    // Se o atual está sendo removido, queremos pular pro próximo
+    // par válido depois. Marca aqui pra resolver depois.
+    const removingCurrent = toRemove.includes(current);
     toRemove.forEach(i => {
       const item = DATA[i];
       // Libera memória: revoga Object URLs (não data URLs).
-      if (item.b.src && item.b.src.startsWith('blob:')) URL.revokeObjectURL(item.b.src);
-      if (item.a.src && item.a.src.startsWith('blob:')) URL.revokeObjectURL(item.a.src);
+      if (item.b && item.b.src && item.b.src.startsWith('blob:')) URL.revokeObjectURL(item.b.src);
+      if (item.a && item.a.src && item.a.src.startsWith('blob:')) URL.revokeObjectURL(item.a.src);
       DATA.splice(i, 1);
     });
     selection.clear();
@@ -3041,9 +3068,15 @@ function startApp(DATA){
       location.reload();
       return;
     }
-    // Tenta preservar a foto que estava sendo vista.
-    let nc = DATA.findIndex(d => d.id === curId);
-    if (nc < 0) nc = Math.min(current, DATA.length - 1);
+    // Tenta preservar a foto atualmente visível. Se ela foi removida,
+    // mantém o índice (que agora aponta pro "próximo" naturalmente).
+    let nc;
+    if (removingCurrent){
+      nc = Math.min(current, DATA.length - 1);
+    } else {
+      nc = DATA.findIndex(d => d.id === curId);
+      if (nc < 0) nc = Math.min(current, DATA.length - 1);
+    }
     current = nc;
     rebuildStrip();
     load(current);
@@ -3110,6 +3143,21 @@ function startApp(DATA){
     const item = DATA[i];
     counterText.textContent = `${i+1} / ${DATA.length}`;
     activateThumb(i);
+
+    // Estado PENDING: par ainda não foi processado (carga lazy em curso).
+    // Mostra um overlay com spinner no viewer; quando o processamento
+    // terminar e _onPairProcessed for chamado, load() é re-invocado.
+    if (item._pending || !item.b.src){
+      compareView.classList.add('is-pending');
+      imgB.removeAttribute('src');
+      imgA.removeAttribute('src');
+      if (sideImgB) sideImgB.removeAttribute('src');
+      if (sideImgA) sideImgA.removeAttribute('src');
+      updateInfoPanel(item);
+      return;
+    }
+    compareView.classList.remove('is-pending');
+
     // Usa as dimensões do "antes" pra dimensionar AMBAS as camadas.
     natW = item.b.w;
     natH = item.b.h;
@@ -3125,15 +3173,57 @@ function startApp(DATA){
     baseScale = computeBaseScale();
     reset();
     // Em modo solo, applySolo recalcula a posição correta (0 ou 100).
-    // Em compare, PRESERVAMOS o valor atual de cut entre fotos —
-    // assim o usuário pode segurar o knob e ir trocando de foto via
-    // teclado sem o slider snapar pro centro. clampCut garante que,
-    // se a nova foto tem aspect ratio diferente, o cut continua
-    // dentro dos limites laterais da imagem nova.
+    // Em compare, PRESERVAMOS o valor atual de cut entre fotos.
     if (mode === 'solo') applySolo();
     else clampCut();
     updateInfoPanel(item);
   }
+
+  /**
+   * Atualiza visualmente UM thumb após processamento async terminar.
+   * Sem rebuild completo — só substitui o src do img e tira a
+   * classe .pending. Mais barato que rebuildStrip().
+   */
+  function refreshThumb(i){
+    const thumb = strip.children[i];
+    if (!thumb) return;
+    const item = DATA[i];
+    const img = thumb.querySelector('img');
+    if (item.t) img.src = item.t;
+    else if (item.b && item.b.src) img.src = item.b.src;
+    thumb.classList.toggle('pending', !!item._pending);
+    thumb.classList.toggle('failed', !!item._failed);
+  }
+
+  /**
+   * Callback registrado globalmente — recebe (id, processedItem) quando
+   * cada par termina o processamento em background.
+   *   - processedItem = null  → falha; marca thumb como .failed
+   *   - processedItem = {...} → merge no DATA + atualiza UI
+   *
+   * IMPORTANTE: usamos ID (não índice) pra encontrar a posição em DATA,
+   * porque sort/remove podem ter mexido nos índices entre o disparo
+   * e a conclusão do processamento.
+   */
+  _onPairProcessed = (id, processed) => {
+    const idx = DATA.findIndex(d => d.id === id);
+    if (idx < 0) return;  // par foi removido antes de terminar
+    if (!processed){
+      // Falha: marca o slot como _failed mas mantém na lista.
+      DATA[idx]._pending = false;
+      DATA[idx]._failed = true;
+      delete DATA[idx]._pair;
+      refreshThumb(idx);
+      return;
+    }
+    // Substitui o placeholder pelo item real, preservando insertedAt
+    // (pra ordenação 'inserted' não embaralhar).
+    const oldInserted = DATA[idx].insertedAt;
+    DATA[idx] = Object.assign({}, processed, { insertedAt: oldInserted });
+    refreshThumb(idx);
+    // Se este é o par atualmente visível, recarrega o viewer.
+    if (idx === current) load(idx);
+  };
 
   /* ---------------------------------------------------------------------------
      REVERSE GEOCODING (lat/lon -> "Cidade, Estado, País")
@@ -3419,7 +3509,9 @@ function startApp(DATA){
       sidebar.classList.toggle('collapsed', !sidebarOpen);
       sidebar.classList.remove('open');
     }
-    $('btnInfo').classList.toggle('active', sidebarOpen);
+    // btnInfo foi removido; sidebar visibility agora vem do collapse-all
+    // (que esconde TODOS os painéis). sidebarOpen mantido apenas pro
+    // bottom-sheet mobile (X de fechar e drag-to-dismiss).
   }
   function toggleSidebar(){ sidebarOpen = !sidebarOpen; applySidebar(); }
   /** Esconde topbar/strip/badges/etc. (toque simples no mobile pra UI clean). */
@@ -3637,8 +3729,10 @@ function startApp(DATA){
   document.querySelectorAll('.mode-btn').forEach(b =>
     b.addEventListener('click', () => setMode(b.dataset.mode)));
 
-  /* ---------- Sidebar / Fullscreen / Help ---------- */
-  $('btnInfo').addEventListener('click', toggleSidebar);
+  /* ---------- Sidebar / Fullscreen / Help ----------
+     btnInfo foi removido da topbar — sidebar agora é controlada
+     pelo collapse-all (que oculta TODOS os painéis ao mesmo tempo).
+     sidebarClose mantém função no bottom-sheet mobile (X interno). */
   $('sidebarClose').addEventListener('click', toggleSidebar);
   $('btnFs').addEventListener('click', toggleFullscreen);
   // Sincroniza o highlight do botão FS com o estado real (Esc do browser também sai).
@@ -3733,16 +3827,9 @@ function startApp(DATA){
         }
       } break;
       case 'f': case 'F': toggleFullscreen(); break;
-      case 'i': case 'I': toggleSidebar(); break;
-      case 't': case 'T': {
-        // T → alterna a topbar (recolher/expandir). F11 do navegador
-        // continua funcionando paralelamente pra fullscreen real.
-        topbarOpen = !topbarOpen; applyTopbar();
-      } break;
-      case 'b': case 'B': {
-        // B → alterna a strip de baixo (recolher/expandir).
-        stripOpen = !stripOpen; applyStrip();
-      } break;
+      // T, B e I (atalhos individuais de collapse) foram removidos —
+      // agora só existe o collapse-all (botão no canto inferior direito
+      // da stage). F11 do navegador continua independente.
       case 's': case 'S': {
         const idx = MODE_CYCLE.indexOf(mode);
         setMode(MODE_CYCLE[(idx + 1) % MODE_CYCLE.length]);
@@ -3975,6 +4062,14 @@ function startApp(DATA){
    */
   async function exportItems(items, kind){
     if (!items.length) return;
+    // Se algum par ainda está sendo processado em background, recusa
+    // a exportação — não podemos re-encodar uma imagem cujo src ainda
+    // é null. Avisa via hint pra o usuário esperar.
+    if (items.some(it => it._pending)){
+      closeExportMenu();
+      showHint(t('err.exportPending'), 3200);
+      return;
+    }
     closeExportMenu();
     const loading = $('loadingScreen');
     const fill = $('loadingFill');
@@ -4115,72 +4210,30 @@ function startApp(DATA){
   });
 
   /* ============================================================
-     COLLAPSE / EXPAND DOS PAINÉIS
+     COLLAPSE-ALL — botão único pra recolher TODOS os painéis
 
-     Cada painel (topbar, strip, sidebar) tem um botão de recolher
-     que adiciona uma classe ao .app. Show-tabs nas bordas reaparecem
-     pra que o usuário possa expandir de volta.
+     Um único toggle. Quando ativo, .app ganha classe .all-collapsed
+     que esconde topbar, strip e sidebar via display:none. A view
+     central (compare/side) expande pra ocupar toda a tela.
 
-     Estado persistido em localStorage:
-       - topbarOpen / stripOpen / sidebarOpen (booleans)
-       - sidebarW / stripH (sizes em px)
+     Atalhos, navegação, zoom, etc. continuam funcionando normalmente.
 
-     IMPORTANTE: F11 do navegador continua intocado — só usamos a
-     tecla 'F' (sem modificador) pra requestFullscreen via JS. F11
-     é tratada pelo browser e nunca chega no nosso keydown listener.
+     F11 do navegador continua intocado — só usamos a tecla 'F' (sem
+     modificador) pra Fullscreen API. F11 é tratada pelo browser e
+     nunca chega ao nosso keydown listener.
      ============================================================ */
-  let topbarOpen = true;
-  let stripOpen = true;
-  // sidebarOpen já existia. Sincroniza com .app.sidebar-collapsed-mark
-  // pra que o show-tab apareça corretamente (precisava de classe no .app).
-
-  function applyTopbar(){
-    app.classList.toggle('topbar-collapsed', !topbarOpen);
-    try { localStorage.setItem('topbarOpen', topbarOpen ? '1' : '0'); } catch(_){}
-  }
-  function applyStrip(){
-    app.classList.toggle('strip-collapsed', !stripOpen);
-    try { localStorage.setItem('stripOpen', stripOpen ? '1' : '0'); } catch(_){}
-  }
-  function applySidebarMark(){
-    // Show-tab da sidebar precisa de uma classe em .app pra ficar visível.
-    app.classList.toggle('sidebar-collapsed-mark', !sidebarOpen);
-  }
-  // Restaura estado salvo (default = aberto).
+  let allCollapsed = false;
   try {
-    if (localStorage.getItem('topbarOpen') === '0') topbarOpen = false;
-    if (localStorage.getItem('stripOpen') === '0') stripOpen = false;
+    if (localStorage.getItem('allCollapsed') === '1') allCollapsed = true;
   } catch(_){}
-  applyTopbar();
-  applyStrip();
-
-  // Wrappers: também sincronizam o show-tab da sidebar.
-  const _applySidebarOrig = applySidebar;
-  applySidebar = function(){
-    _applySidebarOrig.apply(this, arguments);
-    applySidebarMark();
-  };
-  // Reaplica agora com a versão estendida.
-  applySidebarMark();
-
-  // Botões de recolher.
-  $('collapseTopbarBtn').addEventListener('click', () => {
-    topbarOpen = false; applyTopbar();
-  });
-  $('collapseSidebarBtn').addEventListener('click', () => {
-    sidebarOpen = false; applySidebar();
-  });
-  // O collapse do strip vive na strip-tools — adicionado dinamicamente
-  // não, é via atalho 'B' apenas (pra não poluir os 3 botões da strip).
-  // Show-tabs (botões de re-mostrar).
-  $('showTopbarBtn').addEventListener('click', () => {
-    topbarOpen = true; applyTopbar();
-  });
-  $('showStripBtn').addEventListener('click', () => {
-    stripOpen = true; applyStrip();
-  });
-  $('showSidebarBtn').addEventListener('click', () => {
-    sidebarOpen = true; applySidebar();
+  function applyAllCollapsed(){
+    app.classList.toggle('all-collapsed', allCollapsed);
+    try { localStorage.setItem('allCollapsed', allCollapsed ? '1' : '0'); } catch(_){}
+  }
+  applyAllCollapsed();
+  $('collapseAllBtn').addEventListener('click', () => {
+    allCollapsed = !allCollapsed;
+    applyAllCollapsed();
   });
 
   /* ============================================================
@@ -4196,18 +4249,24 @@ function startApp(DATA){
   } catch(_){}
 
   /**
-   * Liga drag-to-resize numa faixa fina (.resizer).
+   * Liga drag-to-resize numa faixa fina (.resizer). Também suporta
+   * DUPLO CLIQUE pra resetar ao tamanho default (limpa o style inline
+   * e remove o valor salvo em localStorage).
    *
-   * @param {HTMLElement} handle  o elemento da faixa
-   * @param {HTMLElement} target  o painel sendo redimensionado
+   * Para o strip (axis='y'), além de ajustar height também propaga
+   * --thumb-h CSS variable pra que TODA a strip (thumbs, ferramentas,
+   * fontes, ícones, bolinha de seleção) escale proporcionalmente.
+   *
+   * @param {HTMLElement} handle  faixa de resize (cursor:col/row-resize)
+   * @param {HTMLElement} target  painel a redimensionar
    * @param {string} axis         'x' (width) ou 'y' (height)
    * @param {number} minV, maxV   limites em px
    * @param {string} storageKey   chave do localStorage
-   * @param {boolean} invert      true se mover na direção positiva
-   *                              do eixo DIMINUI o tamanho (sidebar:
-   *                              moving right = shrink width).
+   * @param {boolean} invert      true se direção positiva DIMINUI tamanho
+   * @param {Function} [onApply]  callback opcional pra aplicar a nova
+   *                              size em CSS vars (ex: strip → --thumb-h)
    */
-  function bindResize(handle, target, axis, minV, maxV, storageKey, invert){
+  function bindResize(handle, target, axis, minV, maxV, storageKey, invert, onApply){
     if (!handle) return;
     let drag = null;
     handle.addEventListener('pointerdown', e => {
@@ -4226,6 +4285,7 @@ function startApp(DATA){
       const newSize = Math.max(minV, Math.min(maxV, drag.startSize + delta));
       if (axis === 'x') target.style.flexBasis = newSize + 'px';
       else target.style.height = newSize + 'px';
+      if (onApply) onApply(newSize);
     });
     const end = e => {
       if (!drag) return;
@@ -4239,16 +4299,43 @@ function startApp(DATA){
     };
     handle.addEventListener('pointerup', end);
     handle.addEventListener('pointercancel', end);
+    // Duplo clique reseta ao default (limpa inline + localStorage).
+    handle.addEventListener('dblclick', e => {
+      e.preventDefault();
+      if (axis === 'x') target.style.flexBasis = '';
+      else target.style.height = '';
+      // Limpa CSS vars custom aplicadas via onApply (ex.: --thumb-h).
+      target.style.removeProperty('--thumb-h');
+      try { localStorage.removeItem(storageKey); } catch(_){}
+    });
+  }
+
+  /**
+   * Calcula e aplica --thumb-h baseado na altura do strip.
+   * thumb-h ≈ strip-height - 22 (padding + borda). Mínimo 40.
+   */
+  function applyStripScale(stripH){
+    const wrap = document.querySelector('.thumbstrip-wrap');
+    const thumbH = Math.max(40, stripH - 22);
+    wrap.style.setProperty('--thumb-h', thumbH + 'px');
   }
 
   // Sidebar (largura): handle no left edge. Move pra ESQUERDA = AUMENTA largura.
-  // Então invert=true (delta = startPos - currentX).
   bindResize($('sidebarResizer'), sidebar, 'x', 240, window.innerWidth * 0.6,
              'sidebarW', true);
   // Strip (altura): handle no top edge. Move pra CIMA = AUMENTA altura.
-  // invert=true (delta = startPos - currentY).
+  // onApply propaga em CSS var pra escalar thumbs, tools, textos, etc.
   bindResize($('stripResizer'), document.querySelector('.thumbstrip-wrap'),
-             'y', 80, 380, 'stripH', true);
+             'y', 80, 380, 'stripH', true, applyStripScale);
+
+  // Se havia altura salva, propaga o --thumb-h derivado agora.
+  try {
+    const sh = localStorage.getItem('stripH');
+    if (sh){
+      const h = parseFloat(sh);
+      if (!isNaN(h)) applyStripScale(h);
+    }
+  } catch(_){}
 
   /* ---------- Reage a mudança de idioma ----------
      Re-renderiza o info panel pra que strings traduzidas dinamicamente
