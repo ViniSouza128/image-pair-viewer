@@ -76,10 +76,14 @@ e País — esse é o único endpoint externo do app; somente
 lat/lon saem do dispositivo (nunca as fotos), com cache em memória
 e throttle de 1.1 s por request.
 
-## Strip inferior — Abrir, Ordenar, Remover
+## Strip lateral — Abrir, Ordenar, Remover
 
-A coluna de ferramentas à esquerda das miniaturas tem 3 botões
-empilhados:
+No **desktop**, a faixa de miniaturas fica como **painel lateral
+esquerdo** (coluna vertical à esquerda do stage); no **mobile**
+(< 901px) reverte automaticamente pra faixa horizontal embaixo,
+preservando a ergonomia em tela vertical.
+
+No topo do painel há 3 botões empilhados:
 
 - **Abrir fotos** — adiciona mais fotos à sessão sem perder as atuais
   (alternativa ao drag-and-drop full-page)
@@ -91,7 +95,9 @@ empilhados:
 
 A escolha de critério e direção são persistidas em `localStorage`.
 Os 3 elementos (Abrir, Ordenar, Remover) têm exatamente a **mesma
-altura** (`--tool-h`, derivada de `--thumb-h`).
+altura** (`--tool-h`, derivada de `--thumb-h`). A largura padrão
+do painel respeita um piso de 160 px (`max(160px, thumb-h + pad)`)
+pra acomodar as labels mesmo nos idiomas mais verbosos.
 
 As miniaturas usam `object-fit:contain` — a foto inteira sempre cabe
 no card, podendo sobrar barras pretas nas laterais (foto vertical)
@@ -167,12 +173,14 @@ no label se 2+).
 ## Idioma
 
 Botão na topbar (mostra a label do idioma ativo: `PT` / `EN` / `ES` /
-`FR`) abre um menu com 4 idiomas:
+`FR` / `DE` / `JA`) abre um menu com 6 idiomas:
 
 - 🇧🇷 **Português (PT-BR)**
 - 🇺🇸 **English (EN-US)**
 - 🇪🇸 **Español (ES-ES)**
 - 🇫🇷 **Français (FR-FR)**
+- 🇩🇪 **Deutsch (DE-DE)**
+- 🇯🇵 **日本語 (JA-JP)**
 
 Detecção inicial: preferência salva (`localStorage`) →
 `navigator.language` → fallback EN-US. A escolha persiste entre
@@ -180,9 +188,10 @@ sessões.
 
 O **título da aba** do navegador (`document.title`) acompanha o
 idioma — ex.: muda entre "Antes / Depois", "Before / After",
-"Antes / Después", "Avant / Après". O **favicon** é um SVG inline
-com as duas bolinhas (azul `--before` + laranja `--after`) que
-formam a logo da marca.
+"Antes / Después", "Avant / Après", "Vorher / Nachher",
+"ビフォー / アフター". O **favicon** é um SVG inline com as duas
+bolinhas (azul `--before` + laranja `--after`) que formam a logo
+da marca.
 
 ## Exportação
 

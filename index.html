@@ -705,8 +705,13 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
    Default --thumb-h = 78px (igual ao tamanho original). Mobile
    override pra 62px. O resize handler sobrescreve via style inline.
    ========================================================================== */
+/* ============ STRIP LATERAL ESQUERDA (desktop default) ============
+   Coluna vertical à esquerda do stage. As tokens internas escalam
+   com --thumb-h (que aqui representa a LARGURA do thumb na coluna,
+   uma vez que thumbs são quadrados). Largura externa do strip =
+   thumb-h + ~22 (igual ao padrão antigo, só rotacionado). */
 .thumbstrip-wrap{flex:0 0 auto;background:linear-gradient(180deg,var(--bg-1),var(--bg));
-  border-top:1px solid var(--line);position:relative;display:flex;align-items:center;
+  border-right:1px solid var(--line);position:relative;display:flex;flex-direction:column;
   /* Sistema de tokens derivados — TUDO escala com --thumb-h. */
   --thumb-h:78px;
   --tool-h:calc(var(--thumb-h) * 0.385);          /* 30px @ 78 */
@@ -714,20 +719,30 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
   --tool-icon:calc(var(--thumb-h) * 0.18);        /* 14px @ 78 */
   --tool-gap:calc(var(--thumb-h) * 0.077);        /* 6px @ 78 */
   --tool-pad:calc(var(--thumb-h) * 0.154);        /* 12px @ 78 */
-  --tools-w:calc(var(--thumb-h) * 1.9);           /* 148px @ 78 */
+  --tools-w:calc(var(--thumb-h) * 1.9);           /* 148px @ 78 (legado, usado em mobile) */
   --num-fs:calc(var(--thumb-h) * 0.128);          /* 10px @ 78 */
   --sel-size:calc(var(--thumb-h) * 0.282);        /* 22px @ 78 */
   --sel-icon:calc(var(--thumb-h) * 0.167);        /* 13px @ 78 */
   --thumb-radius:calc(var(--thumb-h) * 0.103);    /* 8px @ 78 */
-  height:calc(var(--thumb-h) + 22px)}
-.thumbstrip{display:flex;gap:calc(var(--thumb-h) * 0.103);padding:10px 14px;overflow-x:auto;flex:1;
+  --strip-pad-x:calc(var(--thumb-h) * 0.179);     /* 14px @ 78 (horizontal interno do strip) */
+  /* Largura default = max(160px, thumb-h + padding * 2). O floor de
+     160px garante que os botões da strip-tools (Abrir fotos / Nome /
+     Remover) caibam confortavelmente nos idiomas mais comuns. Quando
+     o usuário arrasta o resizer pra aumentar (flex-basis inline), o
+     valor passa a controlar e o CSS max() é ignorado. */
+  width:max(160px, calc(var(--thumb-h) + var(--strip-pad-x) * 2));
+  height:100%}
+.thumbstrip{display:flex;flex-direction:column;gap:calc(var(--thumb-h) * 0.103);
+  padding:10px var(--strip-pad-x);overflow-y:auto;overflow-x:hidden;flex:1;min-height:0;
   scroll-behavior:smooth;scrollbar-width:thin;scrollbar-color:var(--bg-3) transparent}
-.thumbstrip::-webkit-scrollbar{height:6px}
+.thumbstrip::-webkit-scrollbar{width:6px}
 .thumbstrip::-webkit-scrollbar-thumb{background:var(--bg-3);border-radius:3px}
 
 /* Cada thumbnail. Border-color transparent inicial pra a borda do
-   estado .active não mexer no layout (evita "saltinho" ao navegar). */
-.thumb{flex:0 0 auto;width:var(--thumb-h);height:var(--thumb-h);
+   estado .active não mexer no layout (evita "saltinho" ao navegar).
+   No layout vertical o thumb ocupa 100% da largura do strip e fica
+   quadrado via aspect-ratio. Em mobile, override no media query. */
+.thumb{flex:0 0 auto;width:100%;aspect-ratio:1;
   border-radius:var(--thumb-radius);overflow:hidden;cursor:pointer;
   border:2px solid transparent;background:var(--bg-2);position:relative;
   transition:transform var(--t-fast),border-color var(--t-fast)}
@@ -814,29 +829,29 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
    width:140px é fixo pra que os botões fiquem alinhados em coluna
    regardless do label. flex-direction:column empilha.
    ========================================================================== */
-/* Strip-tools escalam com --thumb-h (declarado em .thumbstrip-wrap).
-   Width: 1.9x a altura do thumb (148px @ 78). Padding e gaps escalam.
-   Quando o usuário aumenta o strip via resize, a coluna inteira de
-   tools cresce junto — botões maiores, fontes maiores, ícones maiores. */
+/* Strip-tools = bloco do TOPO da coluna lateral esquerda (desktop).
+   Ocupa 100% da largura do strip; padding escala com --thumb-h.
+   Em mobile (media query mais abaixo) volta a ser coluna LATERAL à
+   esquerda da faixa horizontal (largura fixa --tools-w). */
 .strip-tools{display:flex;flex-direction:column;
   gap:calc(var(--thumb-h) * 0.077);
-  padding:calc(var(--thumb-h) * 0.128) var(--tool-gap);
-  flex-shrink:0;position:relative;height:100%;
-  border-right:1px solid var(--line-2);width:var(--tools-w);
-  justify-content:center}
+  padding:calc(var(--thumb-h) * 0.128) var(--strip-pad-x);
+  flex-shrink:0;position:relative;width:100%;
+  border-bottom:1px solid var(--line-2);box-sizing:border-box}
 .strip-tools[hidden]{display:none}
 .strip-tool{display:inline-flex;align-items:center;
   gap:calc(var(--tool-fs) * 0.6);
   padding:0 var(--tool-pad);height:var(--tool-h);
   /* flex:0 0 var(--tool-h) impede que o flex column estique o botão
      quando há espaço extra (justify-content:center) — preserva a
-     altura uniforme entre os 3 elementos. */
+     altura uniforme entre os 3 elementos. min-width:0 garante que
+     o label trunque com ellipsis em vez de overflow horizontal. */
   flex:0 0 var(--tool-h);
   background:var(--bg-2);border:1px solid var(--line);
   border-radius:calc(var(--tool-h) * 0.23);
   color:var(--fg);cursor:pointer;font-size:var(--tool-fs);font-family:inherit;
   font-weight:500;transition:background var(--t-fast),border-color var(--t-fast),color var(--t-fast),opacity var(--t-fast);
-  white-space:nowrap;width:100%;text-align:left;box-sizing:border-box}
+  white-space:nowrap;width:100%;text-align:left;box-sizing:border-box;min-width:0}
 /* Dentro do sort-row, os filhos NÃO devem usar flex:0 0 var(--tool-h)
    (isso fixaria a LARGURA no eixo do row). Sobrescreve. */
 .sort-row .strip-tool{flex:0 1 auto;height:100%}
@@ -885,9 +900,28 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
   font-feature-settings:"tnum";white-space:nowrap}
 
 @media (max-width:900px){
-  /* Mobile: thumb default menor → todas as vars derivadas escalam
-     automaticamente (strip-tools fica menor, botões menores, etc.). */
-  .thumbstrip-wrap{--thumb-h:62px}
+  /* Mobile: reverte ao layout HORIZONTAL embaixo (mais ergonômico
+     em tela vertical). Recupera o comportamento antigo: thumbs em
+     row, scroll horizontal, strip-tools como coluna à esquerda.
+     Move o resizer pra borda superior (drag vertical ajusta altura). */
+  .thumbstrip-wrap{--thumb-h:62px;
+    flex-direction:row;align-items:center;
+    width:100%;height:calc(var(--thumb-h) + 22px);
+    border-right:none;border-top:1px solid var(--line);
+    padding-bottom:env(safe-area-inset-bottom,0)}
+  .thumbstrip{flex-direction:row;
+    padding:10px var(--strip-pad-x);
+    overflow-x:auto;overflow-y:hidden;
+    align-self:center}
+  .thumbstrip::-webkit-scrollbar{width:0;height:6px}
+  .thumb{width:var(--thumb-h);height:var(--thumb-h);aspect-ratio:auto}
+  .strip-tools{flex-direction:column;width:var(--tools-w);height:100%;
+    border-bottom:none;border-right:1px solid var(--line-2);
+    padding:calc(var(--thumb-h) * 0.128) var(--tool-gap);
+    justify-content:center}
+  /* Resizer volta pra borda superior (drag vertical = altura). */
+  .resizer-strip{top:-3px;left:0;right:0;bottom:auto;
+    width:auto;height:6px;cursor:row-resize}
 }
 
 /* ==========================================================================
@@ -1108,8 +1142,10 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
 
    Sidebar (vertical): handle no edge ESQUERDO da sidebar, drag horizontal
    ajusta width.
-   Strip (horizontal): handle no edge SUPERIOR do thumbstrip-wrap, drag
-   vertical ajusta height.
+   Strip (desktop vertical à esquerda): handle no edge DIREITO da
+   thumbstrip-wrap, drag horizontal ajusta width.
+   Strip (mobile horizontal embaixo): handle no edge SUPERIOR, drag
+   vertical ajusta height. (override via media query mais abaixo).
 
    z-index:9 fica acima da maioria do conteúdo mas abaixo de modais.
    A faixa de 6px é fina; cursor:col-resize/row-resize indica claramente
@@ -1120,7 +1156,8 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
 .resizer:hover,.resizer.dragging{background:rgba(255,174,60,.55)}
 /* Sidebar: -3px do left edge pra estender 3px pra fora (mais fácil de pegar) */
 .resizer-sidebar{top:0;bottom:0;left:-3px;width:6px;cursor:col-resize}
-.resizer-strip{left:0;right:0;top:-3px;height:6px;cursor:row-resize}
+/* Strip (desktop default): borda DIREITA, drag horizontal */
+.resizer-strip{top:0;bottom:0;right:-3px;left:auto;width:6px;height:auto;cursor:col-resize}
 /* Quando sidebar está colapsada (flex-basis:0), o resizer some também. */
 .sidebar.collapsed .resizer-sidebar{display:none}
 .app.strip-collapsed .resizer-strip{display:none}
@@ -1359,6 +1396,65 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
     └── aside.sidebar (320px desktop / bottom-sheet mobile)
 -->
 <div class="main">
+  <!--
+    =================== STRIP LATERAL (ESQUERDA) ===================
+    Painel à ESQUERDA do stage, vertical. Substituiu o antigo footer
+    horizontal embaixo. No desktop a strip vai de cima a baixo; em
+    mobile (<901px) o CSS reverte pra horizontal embaixo (preservando
+    a ergonomia móvel).
+
+    Layout interno (column flex):
+      ├── .strip-tools  — 3 botões no topo (Abrir | Ordenar | Remover)
+      ├── input file (hidden, disparado por Abrir fotos)
+      ├── .thumbstrip   — scroll vertical das miniaturas (flex 1)
+      └── .resizer-strip — borda direita, drag horizontal redimensiona
+
+    Em mobile o flex-direction muda pra row, .strip-tools vira coluna
+    à esquerda e .thumbstrip vira scroll horizontal — comportamento
+    original preservado via @media (max-width:900px).
+  -->
+  <aside class="thumbstrip-wrap">
+    <!-- Resize handle: borda direita do strip, drag horizontal
+         ajusta largura (em mobile vira borda superior + drag vertical). -->
+    <div class="resizer resizer-strip" id="stripResizer" title="Redimensionar"></div>
+
+    <!-- Strip tools: coluna no topo do strip (desktop) ou à esquerda
+         da faixa (mobile). Três botões empilhados:
+           1. Abrir fotos — upload incremental
+           2. Sort split-button — esquerda cicla critério; direita inverte
+           3. Remover — sempre visível; desabilitado sem seleção. -->
+    <div class="strip-tools" id="stripTools">
+      <!-- 1) Abrir fotos -->
+      <button class="strip-tool" id="btnOpenMore" data-i18n-title="ui.openMore" title="Abrir fotos">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        <span class="lbl" data-i18n="ui.openMore">Abrir fotos</span>
+      </button>
+
+      <!-- 2) Sort split-button: main cicla critério, dir inverte direção -->
+      <div class="sort-row">
+        <button class="strip-tool sort-main" id="sortBtn" data-i18n-title="ui.sort.cycle" title="Trocar critério de ordenação">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M6 12h12M10 18h4"/></svg>
+          <span class="lbl" id="sortLabel" data-i18n="sort.name">Nome</span>
+        </button>
+        <button class="strip-tool sort-dir" id="sortDirBtn" data-i18n-title="ui.sort.dir" title="Inverter ordem (crescente/decrescente)" aria-label="Inverter ordem">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+        </button>
+      </div>
+
+      <!-- 3) Remover — sempre presente; disabled quando size=0;
+           label vira "Remover (N)" quando N >= 2 -->
+      <button class="strip-tool danger" id="removeSelBtn" data-i18n-title="ui.remove" title="Remover" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        <span class="lbl" id="removeLabel" data-i18n="ui.remove">Remover</span>
+      </button>
+    </div>
+
+    <!-- Input file escondido — disparado por btnOpenMore (.click()). -->
+    <input type="file" id="addMoreInput" multiple accept="image/*" style="display:none">
+
+    <div class="thumbstrip" id="strip"></div>
+  </aside>
+
   <section class="stage">
     <!--
       VIEW 1: COMPARE (slider) e SOLO
@@ -1432,10 +1528,14 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
          Click: alterna entre "tudo expandido" e "tudo colapsado".
          Ícones internos: o que NÃO está em vigor fica display:none. -->
     <button class="collapse-all" id="collapseAllBtn" data-i18n-title="ui.collapseAll" title="Recolher painéis" aria-label="Recolher / expandir painéis">
-      <!-- Icon collapse (default: 4 setas pra dentro — encolher) -->
-      <svg class="icon-collapse" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
-      <!-- Icon expand (quando colapsado: 4 setas pra fora — expandir) -->
-      <svg class="icon-expand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+      <!-- Icon "collapse" (visível quando painéis estão EXPANDIDOS):
+           L-corners nas bordas externas + diagonais p/ o centro =
+           visual de "puxar pra dentro / encolher". -->
+      <svg class="icon-collapse" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+      <!-- Icon "expand" (visível quando painéis estão COLAPSADOS):
+           L-corners no centro + diagonais p/ as bordas externas =
+           visual de "empurrar pra fora / expandir". -->
+      <svg class="icon-expand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
     </button>
 
     <!--
@@ -1539,48 +1639,9 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
   Apenas um dos dois containers fica visível por vez (controlado
   via atributo `hidden` pelo JS).
 -->
-<footer class="thumbstrip-wrap">
-  <!-- Resize handle: borda superior do strip, drag vertical ajusta altura -->
-  <div class="resizer resizer-strip" id="stripResizer" title="Redimensionar"></div>
-
-  <!-- Strip tools: coluna VERTICAL à esquerda da faixa de miniaturas.
-       Três botões empilhados:
-         1. Abrir fotos — upload incremental (substituiu o "+" da topbar)
-         2. Sort split-button — esquerda cicla critério; direita inverte direção
-         3. Remover — sempre visível; desabilitado sem seleção; mostra
-            "Remover (N)" quando N >= 2. -->
-  <div class="strip-tools" id="stripTools">
-    <!-- 1) Abrir fotos -->
-    <button class="strip-tool" id="btnOpenMore" data-i18n-title="ui.openMore" title="Abrir fotos">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-      <span class="lbl" data-i18n="ui.openMore">Abrir fotos</span>
-    </button>
-
-    <!-- 2) Sort split-button: main cicla critério, dir inverte direção -->
-    <div class="sort-row">
-      <button class="strip-tool sort-main" id="sortBtn" data-i18n-title="ui.sort.cycle" title="Trocar critério de ordenação">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M6 12h12M10 18h4"/></svg>
-        <span class="lbl" id="sortLabel" data-i18n="sort.name">Nome</span>
-      </button>
-      <button class="strip-tool sort-dir" id="sortDirBtn" data-i18n-title="ui.sort.dir" title="Inverter ordem (crescente/decrescente)" aria-label="Inverter ordem">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
-      </button>
-    </div>
-
-    <!-- 3) Remover — sempre presente; disabled quando size=0;
-         label vira "Remover (N)" quando N >= 2 -->
-    <button class="strip-tool danger" id="removeSelBtn" data-i18n-title="ui.remove" title="Remover" disabled>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-      <span class="lbl" id="removeLabel" data-i18n="ui.remove">Remover</span>
-    </button>
-  </div>
-
-  <!-- Input file escondido — disparado por btnOpenMore (.click()).
-       Mantido aqui pra preservar layout do <input> display:none seguro. -->
-  <input type="file" id="addMoreInput" multiple accept="image/*" style="display:none">
-
-  <div class="thumbstrip" id="strip"></div>
-</footer>
+<!-- O antigo <footer class="thumbstrip-wrap"> foi movido pra dentro
+     do <div class="main"> como <aside>, logo antes do <section.stage>.
+     Veja o bloco "STRIP LATERAL (ESQUERDA)" no início de .main. -->
 
 <!--
   =================== DRAG OVERLAY ===================
@@ -2129,6 +2190,190 @@ const I18N = {
     'ui.collapseAll': 'Replier / déplier les panneaux',
     'err.exportPending': 'Attendez la fin du chargement des photos avant d\'exporter.',
   },
+  'de-DE': {
+    'upload.instruction': 'Lade dein Foto-Set hoch — Originale und bearbeitete Versionen, alle zusammen. Paare werden automatisch anhand der Dateinamen erkannt.',
+    'upload.button': 'Fotos auswählen',
+    'upload.privacy': 'Zu 100% in deinem Browser verarbeitet. Nichts wird an einen Server gesendet — alles wird verworfen, wenn du den Tab schließt.',
+    'ui.cancel': 'Abbrechen', 'ui.confirm': 'Bestätigen', 'ui.close': 'Schließen',
+    'ui.export': 'HTML exportieren', 'ui.info': 'Info (I)',
+    'ui.fullscreen': 'Vollbild (F)', 'ui.help': 'Hilfe (?)',
+    'ui.reload': 'Andere Fotos laden',
+    'topbar.modesNav': 'Ansichtsmodus',
+    'mode.slider': 'Schieber', 'mode.side': 'Nebeneinander', 'mode.solo': 'Einzeln',
+    'mode.slider.title': 'Schieber (S)', 'mode.side.title': 'Nebeneinander (S)',
+    'mode.solo.title': 'Einzeln — Leertaste halten zum Umschalten (S)',
+    'export.all.title': 'Offline-Galerie (alle)',
+    'export.all.sub': 'Einzelnes HTML mit allen geladenen Paaren',
+    'export.one.title': 'Komparator dieses Fotos',
+    'export.one.sub': 'Kleines HTML des aktuellen Paares (zum Teilen)',
+    'badge.before': 'Vorher', 'badge.after': 'Nachher',
+    'handle.move': 'Schieber bewegen', 'sidebar.close': 'Panel schließen',
+    'nav.prev': 'Vorherige', 'nav.next': 'Nächste',
+    'zoom.in': 'Vergrößern', 'zoom.out': 'Verkleinern', 'zoom.reset': 'Zurücksetzen (0)',
+    'info.id': 'ID', 'info.file': 'Datei', 'info.dim': 'Abmessungen',
+    'info.size': 'Größe', 'info.capture': 'Aufnahme', 'info.date': 'Datum',
+    'info.author': 'Autor', 'info.camera': 'Kamera', 'info.lens': 'Objektiv',
+    'info.aperture': 'Blende', 'info.shutter': 'Verschluss', 'info.focal': 'Brennweite',
+    'info.location': 'Standort', 'info.coords': 'Koordinaten',
+    'help.title': 'Tastenkürzel & Gesten', 'help.keyboard': 'Tastatur',
+    'help.mouse': 'Maus', 'help.touch': 'Berührung', 'help.or': 'oder',
+    'help.kb.nav': 'Zwischen Fotos navigieren', 'help.kb.space': 'Leertaste',
+    'help.kb.spaceDesc': '(Einzeln-Modus) Halten zum Umschalten Vorher/Nachher',
+    'help.kb.slider': 'Schieber um 5% bewegen', 'help.kb.zoom': 'Vergrößern / Verkleinern',
+    'help.kb.reset': 'Zoom zurücksetzen', 'help.kb.fs': 'Vollbild',
+    'help.kb.info': 'Info-Panel', 'help.kb.mode': 'Modus wechseln',
+    'help.kb.help': 'Diese Hilfe',
+    'help.kb.selAll': 'Strg+A', 'help.kb.selAllDesc': 'Alle Paare auswählen',
+    'help.kb.del': 'Entf', 'help.kb.delDesc': 'Ausgewählte Paare entfernen',
+    'help.m.wheel': 'Rad', 'help.m.wheelDesc': 'Zoom (am Cursor verankert)',
+    'help.m.drag': 'Ziehen', 'help.m.dragDesc': 'Schieber bewegen · Panorama bei Zoom',
+    'help.m.press': 'Drücken (Einzeln)', 'help.m.pressDesc': 'Halten zum Umschalten Vorher/Nachher',
+    'help.m.dblKnob': 'Doppelklick auf Knopf',
+    'help.m.dblKnobDesc': 'Schieber kehrt zur Mitte zurück (50%)',
+    'help.m.dbl': 'Doppelklick', 'help.m.dblDesc': 'Zoom zurücksetzen',
+    'help.t.pinch': 'Pinch', 'help.t.pinchDesc': 'Zoom',
+    'help.t.drag': 'Horizontale Geste',
+    'help.t.dragDesc': 'Schieber bewegen · schnelles Wischen wechselt Foto',
+    'help.t.dbl': 'Doppeltipp', 'help.t.dblDesc': 'Zoom zurücksetzen',
+    'help.t.tap': 'Einfacher Tipp', 'help.t.tapDesc': 'Oberfläche ein-/ausblenden',
+    'err.fewFiles': 'Wähle mindestens 2 Bilder aus.',
+    'err.noPairs': 'Kein Paar erkannt. Prüfe ob die Dateinamen Kamera-Mustern folgen (IMG_NNNN, DSC_NNNNN, etc.) und Originale + bearbeitete Versionen enthalten.',
+    'err.loadFail': 'Konnte keines der Bilder laden.',
+    'err.exportFail': 'Export fehlgeschlagen',
+    'load.reading': 'Lese {n} Paare…',
+    'load.processing': 'Verarbeite {i}/{n}: {id}',
+    'load.preparing': 'Bereite Export vor…',
+    'load.generating': 'Generiere HTML…',
+    'hint.gestures': 'Wischen ⇆ zum Wechseln · Pinch zum Zoomen',
+    'confirm.reload.title': 'Andere Fotos laden?',
+    'confirm.reload.msg': 'Aktuelle Fotos werden verworfen. Du kannst sie später wieder hochladen.',
+    'confirm.reload.yes': 'Verwerfen und neu laden',
+    'geo.resolving': 'suche…',
+    'geo.attribution': 'via OpenStreetMap',
+    'sort.name': 'Name',
+    'sort.inserted': 'Einfügung',
+    'sort.capture': 'Aufnahme',
+    'sort.modified': 'Änderung',
+    'sort.name.full': 'Name (A → Z)',
+    'sort.inserted.full': 'Reihenfolge der Einfügung',
+    'sort.capture.full': 'Aufnahmedatum (alt → neu)',
+    'sort.modified.full': 'Änderung (neu → alt)',
+    'ui.sort': 'Sortieren',
+    'ui.addMore': 'Mehr Fotos hinzufügen',
+    'ui.select': 'Auswählen',
+    'ui.remove': 'Entfernen',
+    'select.count': '{n} ausgewählt',
+    'select.empty': 'Keine ausgewählt',
+    'confirm.remove.title': 'Fotos aus Sitzung entfernen?',
+    'confirm.remove.msg': '{n} Paar(e) werden entfernt. Die Originaldateien auf deinem Gerät sind nicht betroffen — du kannst sie später wieder hochladen.',
+    'confirm.remove.yes': 'Entfernen',
+    'notif.added': '{n} neue(s) Paar(e)',
+    'notif.skipped': '{n} bereits geladen',
+    'notif.none': 'Kein neues Paar (alle bereits geladen oder ungültig)',
+    'notif.adding': 'Hinzufügen…',
+    'select.tip.desktop': 'Strg+Klick um mehrere auszuwählen',
+    'select.tip.touch': 'Lang drücken um mehrere auszuwählen',
+    'drag.title': 'Fotos hier ablegen',
+    'drag.sub': 'Originale und bearbeitete Versionen — werden zur Sitzung hinzugefügt',
+    'drag.sub.initial': 'Originale und bearbeitete Versionen, alle zusammen',
+    'ui.openMore': 'Fotos öffnen',
+    'ui.sort.cycle': 'Sortierkriterium wechseln',
+    'ui.sort.dir': 'Richtung umkehren (auf/ab)',
+    'ui.collapseAll': 'Panels einklappen / ausklappen',
+    'err.exportPending': 'Warte bis die Fotos fertig geladen sind, bevor du exportierst.',
+  },
+  'ja-JP': {
+    'upload.instruction': '写真のセットをアップロード — オリジナルと編集版、すべて一緒に。ペアはファイル名から自動的に識別されます。',
+    'upload.button': '写真を選択',
+    'upload.privacy': 'ブラウザ内で100%処理されます。サーバーには何も送信されません — タブを閉じるとすべて破棄されます。',
+    'ui.cancel': 'キャンセル', 'ui.confirm': '確認', 'ui.close': '閉じる',
+    'ui.export': 'HTMLエクスポート', 'ui.info': '情報 (I)',
+    'ui.fullscreen': 'フルスクリーン (F)', 'ui.help': 'ヘルプ (?)',
+    'ui.reload': '他の写真を読み込む',
+    'topbar.modesNav': '表示モード',
+    'mode.slider': 'スライダー', 'mode.side': '左右', 'mode.solo': '単一',
+    'mode.slider.title': 'スライダー (S)', 'mode.side.title': '左右 (S)',
+    'mode.solo.title': '単一 — スペースを押して切替 (S)',
+    'export.all.title': 'オフラインギャラリー (全部)',
+    'export.all.sub': '読み込んだ全ペアを含む単一HTML',
+    'export.one.title': 'この写真の比較ツール',
+    'export.one.sub': '現在のペアの小さなHTML (共有用)',
+    'badge.before': 'ビフォー', 'badge.after': 'アフター',
+    'handle.move': 'スライダー移動', 'sidebar.close': 'パネルを閉じる',
+    'nav.prev': '前へ', 'nav.next': '次へ',
+    'zoom.in': '拡大', 'zoom.out': '縮小', 'zoom.reset': 'リセット (0)',
+    'info.id': 'ID', 'info.file': 'ファイル', 'info.dim': 'サイズ',
+    'info.size': '容量', 'info.capture': '撮影', 'info.date': '日時',
+    'info.author': '作者', 'info.camera': 'カメラ', 'info.lens': 'レンズ',
+    'info.aperture': '絞り', 'info.shutter': 'シャッター', 'info.focal': '焦点距離',
+    'info.location': '位置', 'info.coords': '座標',
+    'help.title': 'ショートカット & ジェスチャー', 'help.keyboard': 'キーボード',
+    'help.mouse': 'マウス', 'help.touch': 'タッチ', 'help.or': 'または',
+    'help.kb.nav': '写真間を移動', 'help.kb.space': 'スペース',
+    'help.kb.spaceDesc': '(単一モード) 押してビフォー/アフター切替',
+    'help.kb.slider': 'スライダー5%移動', 'help.kb.zoom': '拡大 / 縮小',
+    'help.kb.reset': 'ズームリセット', 'help.kb.fs': 'フルスクリーン',
+    'help.kb.info': '情報パネル', 'help.kb.mode': 'モード切替',
+    'help.kb.help': 'このヘルプ',
+    'help.kb.selAll': 'Ctrl+A', 'help.kb.selAllDesc': '全ペアを選択',
+    'help.kb.del': 'Delete', 'help.kb.delDesc': '選択したペアを削除',
+    'help.m.wheel': 'ホイール', 'help.m.wheelDesc': 'ズーム (カーソル基準)',
+    'help.m.drag': 'ドラッグ', 'help.m.dragDesc': 'スライダー移動 · ズーム時パン',
+    'help.m.press': '長押し (単一)', 'help.m.pressDesc': '押してビフォー/アフター切替',
+    'help.m.dblKnob': 'ノブをダブルクリック',
+    'help.m.dblKnobDesc': 'スライダーを中央 (50%) に戻す',
+    'help.m.dbl': 'ダブルクリック', 'help.m.dblDesc': 'ズームリセット',
+    'help.t.pinch': 'ピンチ', 'help.t.pinchDesc': 'ズーム',
+    'help.t.drag': '水平ドラッグ',
+    'help.t.dragDesc': 'スライダー移動 · 素早いスワイプで写真切替',
+    'help.t.dbl': 'ダブルタップ', 'help.t.dblDesc': 'ズームリセット',
+    'help.t.tap': 'シングルタップ', 'help.t.tapDesc': 'UI表示/非表示',
+    'err.fewFiles': '少なくとも2枚の画像を選択してください。',
+    'err.noPairs': 'ペアが検出されません。ファイル名がカメラのパターン (IMG_NNNN, DSC_NNNNN, など) に従い、オリジナルと編集版が含まれているか確認してください。',
+    'err.loadFail': '画像を読み込めませんでした。',
+    'err.exportFail': 'エクスポート失敗',
+    'load.reading': '{n}ペアを読み込み中…',
+    'load.processing': '処理中 {i}/{n}: {id}',
+    'load.preparing': 'エクスポート準備中…',
+    'load.generating': 'HTML生成中…',
+    'hint.gestures': '⇆ スワイプで切替 · ピンチでズーム',
+    'confirm.reload.title': '他の写真を読み込みますか?',
+    'confirm.reload.msg': '現在の写真は破棄されます。後で再度アップロードできます。',
+    'confirm.reload.yes': '破棄して再読み込み',
+    'geo.resolving': '検索中…',
+    'geo.attribution': 'via OpenStreetMap',
+    'sort.name': '名前',
+    'sort.inserted': '追加順',
+    'sort.capture': '撮影',
+    'sort.modified': '更新',
+    'sort.name.full': '名前 (A → Z)',
+    'sort.inserted.full': '追加順',
+    'sort.capture.full': '撮影日 (古い → 新しい)',
+    'sort.modified.full': '更新日 (新しい → 古い)',
+    'ui.sort': '並び替え',
+    'ui.addMore': '写真を追加',
+    'ui.select': '選択',
+    'ui.remove': '削除',
+    'select.count': '{n}件選択中',
+    'select.empty': '選択なし',
+    'confirm.remove.title': 'セッションから写真を削除しますか?',
+    'confirm.remove.msg': '{n}ペアが削除されます。デバイス上のオリジナルファイルには影響しません — 後で再度アップロードできます。',
+    'confirm.remove.yes': '削除',
+    'notif.added': '{n}件の新しいペア',
+    'notif.skipped': '{n}件はすでに読み込み済み',
+    'notif.none': '新しいペアなし (すべて読み込み済みまたは無効)',
+    'notif.adding': '追加中…',
+    'select.tip.desktop': 'Ctrl+クリックで複数選択',
+    'select.tip.touch': '長押しで複数選択',
+    'drag.title': 'ここに写真をドロップ',
+    'drag.sub': 'オリジナルと編集版 — セッションに追加されます',
+    'drag.sub.initial': 'オリジナルと編集版、すべて一緒に',
+    'ui.openMore': '写真を開く',
+    'ui.sort.cycle': '並び替え基準を切替',
+    'ui.sort.dir': '方向を反転 (昇順/降順)',
+    'ui.collapseAll': 'パネルを折りたたむ / 展開',
+    'err.exportPending': 'エクスポート前に写真の読み込み完了をお待ちください。',
+  },
 };
 
 // Idioma ativo. Detectado na ordem: localStorage > navigator.language > en-US.
@@ -2144,17 +2389,21 @@ let currentLang = (() => {
   if (nav.startsWith('pt')) return 'pt-BR';
   if (nav.startsWith('es')) return 'es-ES';
   if (nav.startsWith('fr')) return 'fr-FR';
+  if (nav.startsWith('de')) return 'de-DE';
+  if (nav.startsWith('ja')) return 'ja-JP';
   return 'en-US';
 })();
 
 /** Label curta (2 letras) p/ exibir no botão de idioma. */
-const LANG_LABEL = { 'pt-BR':'PT', 'en-US':'EN', 'es-ES':'ES', 'fr-FR':'FR' };
+const LANG_LABEL = { 'pt-BR':'PT', 'en-US':'EN', 'es-ES':'ES', 'fr-FR':'FR', 'de-DE':'DE', 'ja-JP':'JA' };
 /** Bandeira / nome longo p/ o menu dropdown. */
 const LANG_INFO = {
   'pt-BR': { flag:'🇧🇷', name:'Português' },
   'en-US': { flag:'🇺🇸', name:'English' },
   'es-ES': { flag:'🇪🇸', name:'Español' },
   'fr-FR': { flag:'🇫🇷', name:'Français' },
+  'de-DE': { flag:'🇩🇪', name:'Deutsch' },
+  'ja-JP': { flag:'🇯🇵', name:'日本語' },
 };
 
 /**
@@ -3398,14 +3647,23 @@ function startApp(DATA){
   rebuildStrip();
   /**
    * Marca o thumb i como ativo (borda laranja) e centraliza-o
-   * na strip via scrollIntoView com block:nearest pra não rolar
-   * a página inteira.
+   * na strip via scrollIntoView. Detecta a orientação (vertical em
+   * desktop / horizontal em mobile) e escolhe block/inline:
+   *   - vertical:   block='center', inline='nearest'
+   *   - horizontal: block='nearest', inline='center'
+   * Assim funciona corretamente nos dois layouts sem rolar a página.
    */
   function activateThumb(i){
     document.querySelectorAll('.thumb').forEach((el, idx) =>
       el.classList.toggle('active', idx === i));
     const el = strip.children[i];
-    if (el) el.scrollIntoView({behavior:'smooth', inline:'center', block:'nearest'});
+    if (!el) return;
+    const isCol = getComputedStyle(strip).flexDirection === 'column';
+    el.scrollIntoView({
+      behavior: 'smooth',
+      block:   isCol ? 'center'  : 'nearest',
+      inline:  isCol ? 'nearest' : 'center',
+    });
   }
 
   /**
@@ -4599,29 +4857,42 @@ function startApp(DATA){
   }
 
   /**
-   * Calcula e aplica --thumb-h baseado na altura do strip.
-   * thumb-h ≈ strip-height - 22 (padding + borda). Mínimo 40.
+   * Calcula e aplica --thumb-h baseado na dimensão "external" do strip.
+   * No layout desktop (vertical) recebe a LARGURA; em mobile (horizontal)
+   * recebe a ALTURA. Em ambos, --thumb-h ≈ dim - 22 (padding + borda).
+   * Mínimo 40 (qualquer coisa abaixo fica visualmente quebrado).
    */
-  function applyStripScale(stripH){
+  function applyStripScale(stripDim){
     const wrap = document.querySelector('.thumbstrip-wrap');
-    const thumbH = Math.max(40, stripH - 22);
+    const thumbH = Math.max(40, stripDim - 22);
     wrap.style.setProperty('--thumb-h', thumbH + 'px');
   }
 
   // Sidebar (largura): handle no left edge. Move pra ESQUERDA = AUMENTA largura.
   bindResize($('sidebarResizer'), sidebar, 'x', 240, window.innerWidth * 0.6,
              'sidebarW', true);
-  // Strip (altura): handle no top edge. Move pra CIMA = AUMENTA altura.
-  // onApply propaga em CSS var pra escalar thumbs, tools, textos, etc.
-  bindResize($('stripResizer'), document.querySelector('.thumbstrip-wrap'),
-             'y', 80, 380, 'stripH', true, applyStripScale);
 
-  // Se havia altura salva, propaga o --thumb-h derivado agora.
+  // Strip: layout é vertical no DESKTOP (handle na borda direita, drag
+  // horizontal = largura) e horizontal no MOBILE (handle na borda
+  // superior, drag vertical = altura). O bindResize decide o eixo
+  // dinamicamente via media query. Migramos chave antiga 'stripH' →
+  // 'stripW' pra desktop. invert=false: arrastar pra direita aumenta
+  // a largura (o handle fica na borda direita do strip).
+  const isMobileLayout = () => !window.matchMedia('(min-width: 901px)').matches;
+  bindResize($('stripResizer'), document.querySelector('.thumbstrip-wrap'),
+             isMobileLayout() ? 'y' : 'x',
+             80, 380,
+             isMobileLayout() ? 'stripH' : 'stripW',
+             isMobileLayout(),     // invert apenas em mobile (drag up = bigger)
+             applyStripScale);
+
+  // Aplica tamanho salvo (preferindo a chave da orientação atual).
   try {
-    const sh = localStorage.getItem('stripH');
-    if (sh){
-      const h = parseFloat(sh);
-      if (!isNaN(h)) applyStripScale(h);
+    const key = isMobileLayout() ? 'stripH' : 'stripW';
+    const sv = localStorage.getItem(key) || localStorage.getItem('stripH');
+    if (sv){
+      const v = parseFloat(sv);
+      if (!isNaN(v)) applyStripScale(v);
     }
   } catch(_){}
 
