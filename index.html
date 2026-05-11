@@ -603,7 +603,10 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
    ========================================================================== */
 .sidebar{flex:0 0 320px;background:var(--bg-1);border-left:1px solid var(--line);
   overflow-y:auto;transition:flex-basis var(--t-med);scrollbar-width:thin;
-  scrollbar-color:var(--bg-3) transparent;display:flex;flex-direction:column}
+  scrollbar-color:var(--bg-3) transparent;display:flex;flex-direction:column;
+  /* position:relative pra que o .resizer-sidebar (position:absolute,
+     left:-3px) se ancore na sidebar e não na viewport. */
+  position:relative}
 .sidebar::-webkit-scrollbar{width:6px}
 .sidebar::-webkit-scrollbar-thumb{background:var(--bg-3);border-radius:3px}
 /* Estado fechado: encolhe pra 0 e remove a borda esquerda.
@@ -692,29 +695,36 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
   background:rgba(0,0,0,.55);padding:1px 5px;border-radius:4px;
   font-family:ui-monospace,Consolas,monospace}
 /* Bolinha de seleção (.sel-toggle) — toggle redondo no canto sup. direito.
-   Visibilidade:
-     - desktop (com hover): escondido por padrão, aparece em hover do thumb
-     - touch (sem hover): sempre semi-visível, fica opaco quando selecionado
-     - qualquer thumb selecionado: sempre 100% visível
+
+   IMPORTANTE: sempre semi-visível (opacity:.6) — ANTES era opacity:0
+   com fade-in no hover, mas o fade introduzia uma "janela" em que o
+   click podia chegar antes da bolinha estar renderizada, fazendo o
+   usuário clicar achando que selecionou mas não. Solução: bolinha
+   permanente. Fica mais visível em hover ou quando selecionada.
+
+   ::before estende a área clicável invisivelmente (hit-target maior
+   que o visual). Cobre 36x36 enquanto a bolinha visual fica em 22x22
+   — clicks "perto" da bolinha (típico em mouse rápido) ainda pegam.
+
    Estados visuais:
-     - vazio: anel branco translúcido sobre fundo escurinho
-     - cheio (selected): preenchido com cor de accent + checkmark dentro
-   pointer-events fica sempre auto pra capturar clique INDEPENDENTE do
-   clique no resto do thumb (queremos circle = toggle, body = navegar). */
+     - vazio (não selecionado): anel branco translúcido + fundo escurinho
+     - cheio (selected): preenchido com cor de accent + check dentro */
 .thumb .sel-toggle{position:absolute;top:6px;right:6px;width:22px;height:22px;
   border-radius:50%;border:2px solid rgba(255,255,255,.85);
-  background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;
-  cursor:pointer;z-index:3;opacity:0;
-  transition:opacity .15s,background .15s,border-color .15s,transform .12s;
-  box-shadow:0 0 0 1px rgba(0,0,0,.35),0 1px 4px rgba(0,0,0,.45)}
+  background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;
+  cursor:pointer;z-index:3;opacity:.6;padding:0;
+  transition:opacity .12s,background .12s,border-color .12s,transform .12s;
+  box-shadow:0 0 0 1px rgba(0,0,0,.4),0 1px 5px rgba(0,0,0,.5)}
+/* Hit-area estendida: ::before invisível 14px maior em cada lado.
+   Como pseudo-element, recebe eventos como parte do .sel-toggle. */
+.thumb .sel-toggle::before{content:'';position:absolute;inset:-7px;border-radius:50%}
 .thumb:hover .sel-toggle{opacity:1}
-.thumb .sel-toggle:hover{transform:scale(1.12)}
+.thumb .sel-toggle:hover{transform:scale(1.12);opacity:1}
 .thumb .sel-toggle svg{width:13px;height:13px;color:#15161b;opacity:0;
-  transition:opacity .12s}
+  transition:opacity .1s;pointer-events:none}
 .thumb.selected .sel-toggle{opacity:1;background:var(--accent);border-color:var(--accent)}
 .thumb.selected .sel-toggle svg{opacity:1}
-/* Em devices touch (hover:none), bolinha sempre semi-visível
-   pra ser descoberta sem hover. */
+/* Touch devices: bolinha bem visível desde o início. */
 @media (hover:none){
   .thumb .sel-toggle{opacity:.85}
 }
@@ -723,39 +733,57 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
   box-shadow:0 0 0 2px rgba(255,174,60,.35),inset 0 0 0 999px rgba(255,174,60,.08)}
 
 /* ==========================================================================
-   STRIP TOOLS — barra de ações à esquerda das miniaturas
+   STRIP TOOLS — coluna vertical à esquerda das miniaturas
 
-   Contém apenas o dropdown de ordenação no estado padrão. Quando o
-   usuário tem pares selecionados, uma "barra de seleção" inline
-   aparece à direita do Sort com contagem + Remover + Limpar.
+   Layout: 3 botões empilhados verticalmente, da mais útil pra mais
+   ocasional:
+     1. Abrir fotos       — botão de upload (incremental ou inicial)
+     2. Sort split-button — esquerda cicla critério, direita inverte direção
+     3. Remover           — botão vermelho com contagem entre parênteses
 
-   A bolinha de seleção em cada thumb (.sel-toggle) é o ponto de
-   entrada principal — não temos mais um botão "Selecionar" dedicado.
+   O Remover ESTÁ sempre presente. Quando 0 selecionados, fica
+   desabilitado visualmente (opacity reduzida + cursor:not-allowed).
+   Com 2+ selecionados, mostra "Remover (5)".
 
-   Add More mudou pra topbar (perto do botão Recarregar) e também
-   funciona via drag-and-drop em qualquer parte da página.
+   width:140px é fixo pra que os botões fiquem alinhados em coluna
+   regardless do label. flex-direction:column empilha.
    ========================================================================== */
-.strip-tools{display:flex;align-items:center;gap:8px;padding:0 14px;
+.strip-tools{display:flex;flex-direction:column;gap:6px;padding:10px 12px;
   flex-shrink:0;position:relative;height:100%;
-  border-right:1px solid var(--line-2)}
+  border-right:1px solid var(--line-2);width:148px;
+  justify-content:center}
 .strip-tools[hidden]{display:none}
-.strip-tool{display:inline-flex;align-items:center;gap:6px;padding:0 12px;height:34px;
-  background:var(--bg-2);border:1px solid var(--line);border-radius:8px;
+.strip-tool{display:inline-flex;align-items:center;gap:8px;padding:0 12px;height:30px;
+  background:var(--bg-2);border:1px solid var(--line);border-radius:7px;
   color:var(--fg);cursor:pointer;font-size:12px;font-family:inherit;
-  font-weight:500;transition:background var(--t-fast),border-color var(--t-fast),color var(--t-fast);
-  white-space:nowrap}
+  font-weight:500;transition:background var(--t-fast),border-color var(--t-fast),color var(--t-fast),opacity var(--t-fast);
+  white-space:nowrap;width:100%;text-align:left}
 .strip-tool:hover{background:var(--bg-3);border-color:var(--bg-3)}
 .strip-tool svg{width:14px;height:14px;flex-shrink:0}
+.strip-tool .lbl{flex:1;overflow:hidden;text-overflow:ellipsis}
 .strip-tool.icon-only{padding:0;width:34px;justify-content:center}
-.strip-tool.danger{color:#ff8e8e;background:rgba(255,80,80,.08);border-color:rgba(255,80,80,.25)}
-.strip-tool.danger:hover{background:rgba(255,80,80,.16);color:#ffabab;border-color:rgba(255,80,80,.45)}
+.strip-tool.danger{color:#ff8e8e;background:rgba(255,80,80,.08);border-color:rgba(255,80,80,.28)}
+.strip-tool.danger:hover{background:rgba(255,80,80,.16);color:#ffabab;border-color:rgba(255,80,80,.5)}
+/* Disabled (Remover sem seleção): mantém cor vermelha mas apagada
+   pra indicar "esse é o botão de remover, só não dá pra usar agora". */
+.strip-tool:disabled{opacity:.42;cursor:not-allowed}
+.strip-tool:disabled:hover{background:rgba(255,80,80,.08);color:#ff8e8e;border-color:rgba(255,80,80,.28);transform:none}
 .strip-tool .chev{width:10px;height:10px;opacity:.7}
 
-/* Barra de seleção inline (visível só quando selection.size > 0). */
-.sel-bar{display:flex;align-items:center;gap:6px;padding-left:8px;
-  margin-left:4px;border-left:1px solid var(--line-2);
-  animation:menu-in .14s ease}
-.sel-bar[hidden]{display:none}
+/* Split-button da ordenação: lado esquerdo (sort-main) cicla o
+   critério, direito (sort-dir) inverte a direção. Visualmente
+   parecem um único botão graças aos border-radius assimétricos +
+   ausência do border do meio. */
+.sort-row{display:flex;width:100%;gap:0}
+.sort-row .sort-main{flex:1;border-top-right-radius:0;border-bottom-right-radius:0;
+  border-right:none;padding-right:8px}
+.sort-row .sort-dir{flex:0 0 30px;width:30px;padding:0;justify-content:center;
+  border-top-left-radius:0;border-bottom-left-radius:0}
+/* A seta inverte direção via rotate(180deg) quando .desc.
+   Mais notável que o restante do botão: cor accent e maior. */
+.sort-row .sort-dir svg{width:14px;height:14px;color:var(--accent);
+  transition:transform .18s cubic-bezier(.4,1.4,.5,1)}
+.sort-row .sort-dir.desc svg{transform:rotate(180deg)}
 /* Sort menu — popup ACIMA do botão (bottom positioned).
    IMPORTANTE: a regra base .menu define top/right. Aqui precisamos
    resetar pra auto, senão o box é "esticado" entre top e bottom
@@ -777,17 +805,14 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
   font-feature-settings:"tnum";white-space:nowrap}
 
 @media (max-width:900px){
-  /* Mobile: compacta tudo. O sort mantém label "Nome"/"Inserção"
-     pra o usuário ver o critério ativo; remove só a label do botão
-     Remover (sobra ícone de lixeira). */
-  #removeSelBtn .lbl{display:none}
-  #removeSelBtn{padding:0;width:34px;justify-content:center}
-  .strip-tool{padding:0 10px;height:30px;font-size:11px}
-  .strip-tool.icon-only{padding:0;width:30px;height:30px}
-  .strip-tools{padding:0 10px;gap:6px}
-  .sort-menu{left:10px;min-width:200px}
-  .sel-count{padding:0 6px;font-size:11px}
-  .sel-bar{padding-left:6px;margin-left:2px;gap:4px}
+  /* Mobile: strip-tools mais compacta (largura menor + botões menores).
+     Mantém a coluna vertical, só aperta tudo. */
+  .strip-tools{width:118px;padding:8px;gap:4px}
+  .strip-tool{padding:0 8px;height:28px;font-size:11px;gap:6px}
+  .strip-tool .lbl{font-size:11px}
+  .strip-tool svg{width:13px;height:13px}
+  .sort-row .sort-dir{flex:0 0 26px;width:26px}
+  .sort-menu{left:8px;min-width:200px}
 }
 
 /* ==========================================================================
@@ -830,11 +855,14 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
 /* ==========================================================================
    CONFIRM MODAL — diálogo custom seguindo o tema dark do app
    (substitui window.confirm() pra evitar a UI feia do navegador).
+
+   Textos e botões centralizados horizontalmente. Botão X de fechar
+   no canto sup. direito (redundante com Cancelar pra facilitar a saída).
    ========================================================================== */
-.confirm-card{max-width:420px}
-.confirm-title{margin:0 0 8px;font-size:16px;font-weight:600}
-.confirm-msg{margin:0 0 22px;color:var(--fg-2);line-height:1.5;font-size:13.5px}
-.confirm-actions{display:flex;gap:8px;justify-content:flex-end}
+.confirm-card{max-width:420px;text-align:center;padding-top:36px}
+.confirm-title{margin:0 0 10px;font-size:16px;font-weight:600}
+.confirm-msg{margin:0 0 24px;color:var(--fg-2);line-height:1.5;font-size:13.5px}
+.confirm-actions{display:flex;gap:10px;justify-content:center}
 .btn{padding:8px 16px;border-radius:8px;font-size:13px;font-family:inherit;
   cursor:pointer;font-weight:500;transition:background var(--t-fast),color var(--t-fast),border-color var(--t-fast);
   border:1px solid var(--line)}
@@ -964,6 +992,84 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
 .app.ui-hidden .navbtn,.app.ui-hidden .overlay-bottom,
 .app.ui-hidden .badge,.app.ui-hidden .solo-badge{opacity:0;pointer-events:none;
   transition:opacity var(--t-med)}
+
+/* ==========================================================================
+   COLLAPSE PANELS — esconder topbar / strip / sidebar independentemente
+
+   Classes aplicadas em .app pelo JS quando o usuário aciona o collapse:
+     .topbar-collapsed  — esconde a topbar
+     .strip-collapsed   — esconde o thumbstrip-wrap
+     .sidebar-collapsed — esconde a sidebar (.sidebar.collapsed já fazia
+                          isso via flex-basis:0 — preservado)
+
+   Quando colapsadas, "show tabs" (tabinhos clicáveis nas bordas) ficam
+   visíveis pro usuário reabrir o painel. Sempre presentes no DOM,
+   mas display:none quando o painel está aberto.
+
+   F11 do navegador continua funcionando porque NÃO interceptamos a
+   tecla (só interceptamos 'F' minúsculo/maiúsculo que usa a Fullscreen
+   API). F11 e o JS fullscreen são caminhos paralelos pro mesmo efeito.
+   ========================================================================== */
+.app.topbar-collapsed .topbar{display:none}
+.app.strip-collapsed .thumbstrip-wrap{display:none}
+
+/* Show tabs — pequenas abas clicáveis nas bordas pra expandir.
+   Posicionadas em .main pra que estejam no contexto certo (acima dos
+   panels colapsados quando estes ficam display:none). */
+.show-tab{position:absolute;z-index:20;background:rgba(20,21,26,.85);
+  border:1px solid var(--line);color:var(--fg-2);cursor:pointer;
+  display:none;align-items:center;justify-content:center;
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  transition:background var(--t-fast),color var(--t-fast),width var(--t-fast),height var(--t-fast)}
+.show-tab:hover{background:rgba(35,38,48,.95);color:var(--fg)}
+.show-tab svg{width:14px;height:14px}
+/* Tab do topo (quando topbar colapsada) — descendo do topo do .main */
+.show-tab-topbar{top:0;left:50%;transform:translateX(-50%);
+  width:60px;height:18px;border-top:none;border-radius:0 0 10px 10px}
+.show-tab-topbar:hover{height:22px}
+/* Tab de baixo (quando strip colapsada) */
+.show-tab-strip{bottom:0;left:50%;transform:translateX(-50%);
+  width:60px;height:18px;border-bottom:none;border-radius:10px 10px 0 0}
+.show-tab-strip:hover{height:22px}
+/* Tab lateral (quando sidebar colapsada). Vertical. */
+.show-tab-sidebar{top:50%;right:0;transform:translateY(-50%);
+  width:18px;height:60px;border-right:none;border-radius:10px 0 0 10px}
+.show-tab-sidebar:hover{width:22px}
+.app.topbar-collapsed .show-tab-topbar{display:flex}
+.app.strip-collapsed .show-tab-strip{display:flex}
+.app.sidebar-collapsed-mark .show-tab-sidebar{display:flex}
+
+/* Botão de collapse em cada painel — pequeno, discreto.
+   Topbar: à direita das ações. Strip: como uma chevron no topo dos
+   strip-tools. Sidebar: ao lado do título da side-header. */
+.panel-collapse{width:24px;height:24px;background:transparent;border:none;
+  color:var(--fg-3);cursor:pointer;border-radius:5px;display:flex;
+  align-items:center;justify-content:center;padding:0;
+  transition:background var(--t-fast),color var(--t-fast)}
+.panel-collapse:hover{background:var(--bg-2);color:var(--fg)}
+.panel-collapse svg{width:14px;height:14px}
+
+/* ==========================================================================
+   RESIZE HANDLES — bordas internas drag-able pra ajustar tamanho
+
+   Sidebar (vertical): handle no edge ESQUERDO da sidebar, drag horizontal
+   ajusta width.
+   Strip (horizontal): handle no edge SUPERIOR do thumbstrip-wrap, drag
+   vertical ajusta height.
+
+   z-index:9 fica acima da maioria do conteúdo mas abaixo de modais.
+   A faixa de 6px é fina; cursor:col-resize/row-resize indica claramente
+   a ação. background ganha cor de accent em hover/drag pra feedback.
+   ========================================================================== */
+.resizer{position:absolute;z-index:9;background:transparent;
+  transition:background .12s}
+.resizer:hover,.resizer.dragging{background:rgba(255,174,60,.55)}
+/* Sidebar: -3px do left edge pra estender 3px pra fora (mais fácil de pegar) */
+.resizer-sidebar{top:0;bottom:0;left:-3px;width:6px;cursor:col-resize}
+.resizer-strip{left:0;right:0;top:-3px;height:6px;cursor:row-resize}
+/* Quando sidebar está colapsada (flex-basis:0), o resizer some também. */
+.sidebar.collapsed .resizer-sidebar{display:none}
+.app.strip-collapsed .resizer-strip{display:none}
 
 /* ==========================================================================
    DRAG OVERLAY — feedback explícito durante drag de arquivos
@@ -1137,16 +1243,10 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
     <button class="icon-btn lang-btn" id="btnLang" title="Idioma / Language" aria-label="Idioma">
       <span id="langLabel">PT</span>
     </button>
-    <!-- Adicionar mais fotos à sessão (incremental). Funciona em
-         paralelo ao drag-and-drop full-page e ao botão "+" da strip
-         (todos disparam o mesmo input file escondido).
-         Posicionado antes de Reload pra agrupar logicamente as ações
-         de "input" no topbar. -->
-    <button class="icon-btn" id="btnAddMore" data-i18n-title="ui.addMore" data-i18n-aria="ui.addMore" title="Adicionar mais fotos" aria-label="Adicionar">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-    </button>
     <!-- Recarregar lote: descarta os atuais (revoga Object URLs) e
-         volta pra tela de upload. -->
+         volta pra tela de upload.
+         NOTA: o botão "+ Adicionar" voltou pra strip-tools como
+         "Abrir fotos" (preferência do usuário pela disposição visual). -->
     <button class="icon-btn" id="btnReload" title="Carregar outras fotos" aria-label="Recarregar"
       data-i18n-title="ui.reload" data-i18n-aria="ui.reload">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><polyline points="21 3 21 8 16 8"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><polyline points="3 21 3 16 8 16"/></svg>
@@ -1185,6 +1285,11 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
     <!-- Modal de ajuda com a tabela completa de atalhos/gestos. -->
     <button class="icon-btn" id="btnHelp" data-i18n-title="ui.help" data-i18n-aria="ui.help" title="Ajuda (?)" aria-label="Ajuda">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+    </button>
+    <!-- Recolher topbar (chevron-up) — esconde a barra; show-tab no
+         topo do .main aparece pra reabrir. Atalho de teclado: T. -->
+    <button class="panel-collapse" id="collapseTopbarBtn" data-i18n-title="ui.collapseTopbar" title="Recolher topo" aria-label="Recolher">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
     </button>
   </div>
 </header>
@@ -1271,6 +1376,18 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
     </button>
 
+    <!-- Show tabs (botões pra reabrir painel colapsado).
+         Exibidos via classe no .app (topbar-collapsed, etc.). -->
+    <button class="show-tab show-tab-topbar" id="showTopbarBtn" data-i18n-title="ui.showTopbar" title="Mostrar topo" aria-label="Mostrar topo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+    </button>
+    <button class="show-tab show-tab-strip" id="showStripBtn" data-i18n-title="ui.showStrip" title="Mostrar fotos" aria-label="Mostrar fotos">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+    </button>
+    <button class="show-tab show-tab-sidebar" id="showSidebarBtn" data-i18n-title="ui.showSidebar" title="Mostrar painel" aria-label="Mostrar painel">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+
     <!--
       Overlay inferior: zoom pill flutuante centralizado.
       Container .overlay-bottom tem pointer-events:none pra cliques
@@ -1305,12 +1422,19 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
     pra acessibilidade.
   -->
   <aside class="sidebar" id="sidebar">
+    <!-- Resize handle: edge esquerda da sidebar, drag horizontal ajusta
+         largura. position:absolute relativo à .sidebar. -->
+    <div class="resizer resizer-sidebar" id="sidebarResizer" title="Redimensionar"></div>
     <!-- Pega da gaveta (visível só em mobile via media query). -->
     <div class="sheet-handle"></div>
     <div class="side-content">
       <div class="side-header">
         <!-- Título: nome do arquivo "antes". Atualizado em JS por load(). -->
         <h2 id="pairTitle">—</h2>
+        <!-- Recolher sidebar (chevron-right) — atalho desktop. -->
+        <button class="panel-collapse" id="collapseSidebarBtn" data-i18n-title="ui.collapseSidebar" title="Recolher painel" aria-label="Recolher">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
         <!-- X de fechar (visível só em mobile). -->
         <button class="side-close" id="sidebarClose" data-i18n-aria="sidebar.close" aria-label="Fechar painel">×</button>
       </div>
@@ -1370,52 +1494,43 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
   via atributo `hidden` pelo JS).
 -->
 <footer class="thumbstrip-wrap">
-  <!-- Strip tools: SOMENTE Sort no estado padrão. Quando há pares
-       selecionados, a .sel-bar (filha) revela contagem + remover +
-       limpar inline ao lado do botão de ordenar. -->
+  <!-- Resize handle: borda superior do strip, drag vertical ajusta altura -->
+  <div class="resizer resizer-strip" id="stripResizer" title="Redimensionar"></div>
+
+  <!-- Strip tools: coluna VERTICAL à esquerda da faixa de miniaturas.
+       Três botões empilhados:
+         1. Abrir fotos — upload incremental (substituiu o "+" da topbar)
+         2. Sort split-button — esquerda cicla critério; direita inverte direção
+         3. Remover — sempre visível; desabilitado sem seleção; mostra
+            "Remover (N)" quando N >= 2. -->
   <div class="strip-tools" id="stripTools">
-    <!-- Sort dropdown -->
-    <button class="strip-tool" id="sortBtn" data-i18n-title="ui.sort" title="Ordenar" aria-haspopup="menu" aria-expanded="false">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M6 12h12M10 18h4"/></svg>
-      <span class="lbl" id="sortLabel" data-i18n="sort.name">Nome</span>
-      <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+    <!-- 1) Abrir fotos -->
+    <button class="strip-tool" id="btnOpenMore" data-i18n-title="ui.openMore" title="Abrir fotos">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      <span class="lbl" data-i18n="ui.openMore">Abrir fotos</span>
     </button>
-    <div class="menu sort-menu" id="sortMenu" role="menu" hidden>
-      <button data-sort="name" class="active" role="menuitem">
-        <svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-        <span data-i18n="sort.name.full">Nome (A → Z)</span>
+
+    <!-- 2) Sort split-button: main cicla critério, dir inverte direção -->
+    <div class="sort-row">
+      <button class="strip-tool sort-main" id="sortBtn" data-i18n-title="ui.sort.cycle" title="Trocar critério de ordenação">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M6 12h12M10 18h4"/></svg>
+        <span class="lbl" id="sortLabel" data-i18n="sort.name">Nome</span>
       </button>
-      <button data-sort="inserted" role="menuitem">
-        <svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-        <span data-i18n="sort.inserted.full">Ordem de inserção</span>
-      </button>
-      <button data-sort="capture" role="menuitem">
-        <svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-        <span data-i18n="sort.capture.full">Data de captura</span>
-      </button>
-      <button data-sort="modified" role="menuitem">
-        <svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-        <span data-i18n="sort.modified.full">Modificação (recente → antiga)</span>
+      <button class="strip-tool sort-dir" id="sortDirBtn" data-i18n-title="ui.sort.dir" title="Inverter ordem (crescente/decrescente)" aria-label="Inverter ordem">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
       </button>
     </div>
 
-    <!-- Barra de seleção INLINE — aparece quando há ≥1 selecionado.
-         Mostrada/escondida por JS via toggle do atributo hidden. -->
-    <div class="sel-bar" id="selBar" hidden>
-      <span class="sel-count" id="selCount">0</span>
-      <button class="strip-tool danger" id="removeSelBtn" data-i18n-title="ui.remove" title="Remover" aria-label="Remover">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-        <span class="lbl" data-i18n="ui.remove">Remover</span>
-      </button>
-      <button class="strip-tool icon-only" id="cancelSelBtn" data-i18n-title="ui.cancel" data-i18n-aria="ui.cancel" title="Limpar seleção" aria-label="Cancelar">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </button>
-    </div>
+    <!-- 3) Remover — sempre presente; disabled quando size=0;
+         label vira "Remover (N)" quando N >= 2 -->
+    <button class="strip-tool danger" id="removeSelBtn" data-i18n-title="ui.remove" title="Remover" disabled>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+      <span class="lbl" id="removeLabel" data-i18n="ui.remove">Remover</span>
+    </button>
   </div>
 
-  <!-- Input file escondido — ainda usado pelo botão "+" da topbar via
-       trigger programático (.click()). Mantido aqui pra preservar
-       layout do <input> com display:none seguro. -->
+  <!-- Input file escondido — disparado por btnOpenMore (.click()).
+       Mantido aqui pra preservar layout do <input> display:none seguro. -->
   <input type="file" id="addMoreInput" multiple accept="image/*" style="display:none">
 
   <div class="thumbstrip" id="strip"></div>
@@ -1461,6 +1576,10 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
 -->
 <div class="modal" id="confirmModal" hidden>
   <div class="modal-card confirm-card">
+    <!-- Botão X no canto superior direito — redundante com "Cancelar"
+         pra facilitar saída rápida. Mesma classe .modal-close do
+         helpModal pra reaproveitar estilo. -->
+    <button class="modal-close" id="confirmCloseX" data-i18n-aria="ui.close" aria-label="Fechar">×</button>
     <h3 class="confirm-title" id="confirmTitle">—</h3>
     <p class="confirm-msg" id="confirmMsg">—</p>
     <div class="confirm-actions">
@@ -1679,6 +1798,16 @@ const I18N = {
     'drag.title': 'Solte as fotos aqui',
     'drag.sub': 'Originais e versões editadas — serão adicionadas à sessão',
     'drag.sub.initial': 'Originais e versões editadas, todas juntas',
+    // ----- Novos: Abrir fotos / sort split / collapse / show tabs -----
+    'ui.openMore': 'Abrir fotos',
+    'ui.sort.cycle': 'Trocar critério de ordenação',
+    'ui.sort.dir': 'Inverter ordem (crescente/decrescente)',
+    'ui.collapseTopbar': 'Recolher barra de cima',
+    'ui.collapseStrip': 'Recolher faixa de fotos',
+    'ui.collapseSidebar': 'Recolher painel de informações',
+    'ui.showTopbar': 'Mostrar barra de cima',
+    'ui.showStrip': 'Mostrar faixa de fotos',
+    'ui.showSidebar': 'Mostrar painel de informações',
   },
   'en-US': {
     'upload.instruction': 'Upload your set of photos — originals and edited versions, all together. Pairs are identified automatically from filenames.',
@@ -1767,6 +1896,16 @@ const I18N = {
     'drag.title': 'Drop photos here',
     'drag.sub': 'Originals and edited versions — will be added to the session',
     'drag.sub.initial': 'Originals and edited versions, all together',
+    // ----- New: Open photos / sort split / collapse / show tabs -----
+    'ui.openMore': 'Open photos',
+    'ui.sort.cycle': 'Cycle sort criterion',
+    'ui.sort.dir': 'Toggle direction (asc/desc)',
+    'ui.collapseTopbar': 'Collapse top bar',
+    'ui.collapseStrip': 'Collapse photos strip',
+    'ui.collapseSidebar': 'Collapse info panel',
+    'ui.showTopbar': 'Show top bar',
+    'ui.showStrip': 'Show photos strip',
+    'ui.showSidebar': 'Show info panel',
   },
 };
 
@@ -1862,6 +2001,7 @@ function showConfirm(opts){
     const msgEl = document.getElementById('confirmMsg');
     const yesBtn = document.getElementById('confirmYes');
     const noBtn = document.getElementById('confirmNo');
+    const xBtn = document.getElementById('confirmCloseX');
 
     titleEl.textContent = opts.title || t('ui.confirm');
     msgEl.textContent = opts.message || '';
@@ -1870,11 +2010,13 @@ function showConfirm(opts){
     yesBtn.classList.toggle('danger', !!opts.danger);
     modal.hidden = false;
 
-    // Cleanup: remove listeners pra não vazar memória entre invocações.
+    // Cleanup: remove TODOS os listeners (X, sim, não, fundo, teclado)
+    // pra evitar vazamento entre invocações sucessivas.
     function cleanup(result){
       modal.hidden = true;
       yesBtn.removeEventListener('click', onYes);
       noBtn.removeEventListener('click', onNo);
+      if (xBtn) xBtn.removeEventListener('click', onNo);
       modal.removeEventListener('click', onBg);
       document.removeEventListener('keydown', onKey, true);
       resolve(result);
@@ -1889,6 +2031,7 @@ function showConfirm(opts){
 
     yesBtn.addEventListener('click', onYes);
     noBtn.addEventListener('click', onNo);
+    if (xBtn) xBtn.addEventListener('click', onNo);  // X = mesmo que Cancelar
     modal.addEventListener('click', onBg);
     // capture:true pra interceptar Esc antes do handler global do app.
     document.addEventListener('keydown', onKey, true);
@@ -2632,6 +2775,10 @@ function startApp(DATA){
      Comparadores SORT_COMPARATORS retornam <0 (a antes de b), 0,
      ou >0. Items sem o campo de sort caem pro fim usando ±Infinity.
      ============================================================ */
+  /* Comparadores TODOS em ASCENDING (a vem antes de b). A direção
+     é controlada separadamente por sortDir — quando 'desc' o sort()
+     negate o resultado pra inverter. Isso permite que cada critério
+     tenha "asc" e "desc" controlados pelo usuário via a seta da UI. */
   const SORT_COMPARATORS = {
     name: (a, b) => a.b.name.localeCompare(b.b.name, undefined, {numeric: true, sensitivity: 'base'}),
     inserted: (a, b) => a.insertedAt - b.insertedAt,
@@ -2645,19 +2792,33 @@ function startApp(DATA){
       return ad.localeCompare(bd);
     },
     modified: (a, b) => {
-      // Newest first (descending). Usa lastModified da versão editada
-      // (item.a) — assume que é o "trabalho mais recente" do usuário.
+      // Oldest first (ascending). lastModified do "after" — assume
+      // que é o "trabalho mais recente" do usuário. Usuário pode
+      // inverter pra "recent first" via a setinha de direção.
       const am = (a.a && a.a.lastModified) || 0;
       const bm = (b.a && b.a.lastModified) || 0;
-      return bm - am;
+      return am - bm;
     },
   };
+  // Ordem em que o botão sort-main cicla os critérios.
+  const SORT_FIELDS_ORDER = ['name', 'inserted', 'capture', 'modified'];
+
   let currentSort = (() => {
     try {
       const saved = localStorage.getItem('sort');
       if (saved && SORT_COMPARATORS[saved]) return saved;
     } catch(_){}
     return 'name';
+  })();
+  // Direção da ordenação: 'asc' (default) ou 'desc'. Persistida em
+  // localStorage independente do critério — assim cada usuário tem
+  // seu jeito favorito de ver a strip.
+  let sortDir = (() => {
+    try {
+      const saved = localStorage.getItem('sortDir');
+      if (saved === 'desc') return 'desc';
+    } catch(_){}
+    return 'asc';
   })();
   /* ----- MODELO DE SELEÇÃO (estilo Windows Explorer / Finder) -----
      Não existe mais "modo seleção" explícito. A seleção é IMPLÍCITA:
@@ -2669,12 +2830,17 @@ function startApp(DATA){
   let selectionAnchor = null;
 
   /**
-   * Re-ordena DATA conforme currentSort, preservando a foto atualmente
-   * visível (rastreada por ID) e a seleção atual (também por ID).
+   * Re-ordena DATA conforme currentSort + sortDir, preservando a foto
+   * atualmente visível (rastreada por ID) e a seleção atual (também por ID).
+   *
+   * O comparador base é sempre ascendente; pra desc, multiplicamos
+   * por -1. Pra estabilidade, Array.sort() em V8/Firefox modernos
+   * já é estável (TimSort/Merge), então não precisamos de tiebreak.
    */
   function applySort(){
-    const cmp = SORT_COMPARATORS[currentSort];
-    if (!cmp) return;
+    const base = SORT_COMPARATORS[currentSort];
+    if (!base) return;
+    const cmp = sortDir === 'desc' ? (a, b) => -base(a, b) : base;
     const curId = DATA[current] && DATA[current].id;
     const selIds = new Set([...selection].map(i => DATA[i] && DATA[i].id).filter(Boolean));
     DATA.sort(cmp);
@@ -2796,22 +2962,30 @@ function startApp(DATA){
   }
 
   /* ---------- Helpers de seleção ----------
-     A seleção é "implícita": existe quando selection.size > 0. A
-     barra de ações (.sel-bar) aparece automaticamente. Nada de flag
-     selectionMode separada — simplificação significativa do estado. */
-  const selBar = $('selBar');
-  const selCountEl = $('selCount');
+     A seleção é "implícita": existe quando selection.size > 0.
+     O botão Remover está SEMPRE no DOM (na strip-tools) — quando
+     não há seleção fica desabilitado (opacity reduzida). Quando há
+     2+ selecionados, label vira "Remover (N)". */
+  const removeBtn = $('removeSelBtn');
+  const removeLabel = $('removeLabel');
 
   /**
    * Sincroniza a UI com o Set de seleção:
-   *   - mostra/esconde .sel-bar baseado em selection.size
-   *   - atualiza a contagem
+   *   - atualiza disabled e label do botão Remover
    *   - reflete classe .selected em cada .thumb
    */
   function updateSelectionUI(){
     const n = selection.size;
-    selBar.hidden = (n === 0);
-    selCountEl.textContent = t('select.count', { n });
+    if (n === 0){
+      removeBtn.disabled = true;
+      removeLabel.textContent = t('ui.remove');
+    } else {
+      removeBtn.disabled = false;
+      // 2+ → "Remover (5)". 1 → só "Remover".
+      removeLabel.textContent = n >= 2
+        ? t('ui.remove') + ' (' + n + ')'
+        : t('ui.remove');
+    }
     document.querySelectorAll('.thumb').forEach((el, idx) => {
       el.classList.toggle('selected', selection.has(idx));
     });
@@ -3542,9 +3716,10 @@ function startApp(DATA){
       case '0': case 'Escape': {
         // Esc tem precedência em camadas: fecha o que estiver aberto
         // primeiro (menus > modal > seleção > zoom reset).
+        // (sortMenu foi removido em favor do sort cycler — não há mais
+        // dropdown pra fechar.)
         const exMenu = $('exportMenu');
         if (exMenu && !exMenu.hidden){ exMenu.hidden = true; break; }
-        if (sortMenu && !sortMenu.hidden){ closeSortMenu(); break; }
         if (!helpModal.hidden){ helpModal.hidden = true; break; }
         if (selection.size > 0){ clearSelection(); break; }
         reset();
@@ -3559,6 +3734,15 @@ function startApp(DATA){
       } break;
       case 'f': case 'F': toggleFullscreen(); break;
       case 'i': case 'I': toggleSidebar(); break;
+      case 't': case 'T': {
+        // T → alterna a topbar (recolher/expandir). F11 do navegador
+        // continua funcionando paralelamente pra fullscreen real.
+        topbarOpen = !topbarOpen; applyTopbar();
+      } break;
+      case 'b': case 'B': {
+        // B → alterna a strip de baixo (recolher/expandir).
+        stripOpen = !stripOpen; applyStrip();
+      } break;
       case 's': case 'S': {
         const idx = MODE_CYCLE.indexOf(mode);
         setMode(MODE_CYCLE[(idx + 1) % MODE_CYCLE.length]);
@@ -3877,60 +4061,49 @@ function startApp(DATA){
      Strip tools: Sort, Add More, Selection, Remove
      ============================================================ */
 
-  // ---- Sort dropdown ----
+  /* ---- Sort split-button (cicla critério + inverte direção) ----
+     sortBtn (sort-main) → cicla pra próximo critério em SORT_FIELDS_ORDER.
+     sortDirBtn (sort-dir) → inverte sortDir ('asc' ↔ 'desc').
+     Cada ação persiste em localStorage e re-renderiza a strip. */
   const sortBtn = $('sortBtn');
-  const sortMenu = $('sortMenu');
+  const sortDirBtn = $('sortDirBtn');
   const sortLabel = $('sortLabel');
 
-  /** Atualiza a label do botão de sort + o item "active" no menu. */
+  /** Atualiza label do botão sort + visual da seta (rotate 180 quando desc). */
   function refreshSortUI(){
     sortLabel.textContent = t('sort.' + currentSort);
-    sortMenu.querySelectorAll('button[data-sort]').forEach(b => {
-      b.classList.toggle('active', b.dataset.sort === currentSort);
-    });
+    sortDirBtn.classList.toggle('desc', sortDir === 'desc');
   }
-  function openSortMenu(){
-    sortMenu.hidden = false;
-    sortBtn.setAttribute('aria-expanded', 'true');
+  function cycleSort(){
+    const i = SORT_FIELDS_ORDER.indexOf(currentSort);
+    currentSort = SORT_FIELDS_ORDER[(i + 1) % SORT_FIELDS_ORDER.length];
+    try { localStorage.setItem('sort', currentSort); } catch(_){}
+    applySort();
+    rebuildStrip();
+    load(current);
+    refreshSortUI();
   }
-  function closeSortMenu(){
-    sortMenu.hidden = true;
-    sortBtn.setAttribute('aria-expanded', 'false');
+  function toggleSortDir(){
+    sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+    try { localStorage.setItem('sortDir', sortDir); } catch(_){}
+    applySort();
+    rebuildStrip();
+    load(current);
+    refreshSortUI();
   }
-  sortBtn.addEventListener('click', e => {
-    e.stopPropagation();
-    if (sortMenu.hidden) openSortMenu(); else closeSortMenu();
-  });
-  // Clique fora fecha o menu.
-  document.addEventListener('click', e => {
-    if (!sortMenu.hidden && !sortMenu.contains(e.target) && e.target !== sortBtn){
-      closeSortMenu();
-    }
-  });
-  // Clique num item: troca o sort, persiste, re-renderiza.
-  sortMenu.querySelectorAll('button[data-sort]').forEach(b => {
-    b.addEventListener('click', () => {
-      currentSort = b.dataset.sort;
-      try { localStorage.setItem('sort', currentSort); } catch(_){}
-      applySort();
-      rebuildStrip();
-      load(current);
-      refreshSortUI();
-      closeSortMenu();
-    });
-  });
+  sortBtn.addEventListener('click', cycleSort);
+  sortDirBtn.addEventListener('click', toggleSortDir);
   refreshSortUI();
 
-  // ---- Add More (topbar) ----
-  // Reaproveita o input #addMoreInput que já está no DOM e teve seu
-  // change handler ligado em bindUploadUI. Aqui só disparamos o click.
-  $('btnAddMore').addEventListener('click', () => {
+  // ---- Abrir fotos (botão da strip-tools) ----
+  // Dispara o file picker oculto. handleFiles detecta que app já está
+  // rodando e chama em modo append automaticamente.
+  $('btnOpenMore').addEventListener('click', () => {
     if (addMoreInput) addMoreInput.click();
   });
 
-  // ---- Ações da barra de seleção ----
-  $('removeSelBtn').addEventListener('click', removeSelected);
-  $('cancelSelBtn').addEventListener('click', clearSelection);
+  // ---- Botão Remover (sempre visível na strip-tools) ----
+  removeBtn.addEventListener('click', removeSelected);
 
   // ---- Clique em área vazia da strip = limpar seleção ----
   // Quando o usuário clica no padding/gap entre thumbs (não num thumb),
@@ -3940,6 +4113,142 @@ function startApp(DATA){
   strip.addEventListener('click', e => {
     if (e.target === strip) clearSelection();
   });
+
+  /* ============================================================
+     COLLAPSE / EXPAND DOS PAINÉIS
+
+     Cada painel (topbar, strip, sidebar) tem um botão de recolher
+     que adiciona uma classe ao .app. Show-tabs nas bordas reaparecem
+     pra que o usuário possa expandir de volta.
+
+     Estado persistido em localStorage:
+       - topbarOpen / stripOpen / sidebarOpen (booleans)
+       - sidebarW / stripH (sizes em px)
+
+     IMPORTANTE: F11 do navegador continua intocado — só usamos a
+     tecla 'F' (sem modificador) pra requestFullscreen via JS. F11
+     é tratada pelo browser e nunca chega no nosso keydown listener.
+     ============================================================ */
+  let topbarOpen = true;
+  let stripOpen = true;
+  // sidebarOpen já existia. Sincroniza com .app.sidebar-collapsed-mark
+  // pra que o show-tab apareça corretamente (precisava de classe no .app).
+
+  function applyTopbar(){
+    app.classList.toggle('topbar-collapsed', !topbarOpen);
+    try { localStorage.setItem('topbarOpen', topbarOpen ? '1' : '0'); } catch(_){}
+  }
+  function applyStrip(){
+    app.classList.toggle('strip-collapsed', !stripOpen);
+    try { localStorage.setItem('stripOpen', stripOpen ? '1' : '0'); } catch(_){}
+  }
+  function applySidebarMark(){
+    // Show-tab da sidebar precisa de uma classe em .app pra ficar visível.
+    app.classList.toggle('sidebar-collapsed-mark', !sidebarOpen);
+  }
+  // Restaura estado salvo (default = aberto).
+  try {
+    if (localStorage.getItem('topbarOpen') === '0') topbarOpen = false;
+    if (localStorage.getItem('stripOpen') === '0') stripOpen = false;
+  } catch(_){}
+  applyTopbar();
+  applyStrip();
+
+  // Wrappers: também sincronizam o show-tab da sidebar.
+  const _applySidebarOrig = applySidebar;
+  applySidebar = function(){
+    _applySidebarOrig.apply(this, arguments);
+    applySidebarMark();
+  };
+  // Reaplica agora com a versão estendida.
+  applySidebarMark();
+
+  // Botões de recolher.
+  $('collapseTopbarBtn').addEventListener('click', () => {
+    topbarOpen = false; applyTopbar();
+  });
+  $('collapseSidebarBtn').addEventListener('click', () => {
+    sidebarOpen = false; applySidebar();
+  });
+  // O collapse do strip vive na strip-tools — adicionado dinamicamente
+  // não, é via atalho 'B' apenas (pra não poluir os 3 botões da strip).
+  // Show-tabs (botões de re-mostrar).
+  $('showTopbarBtn').addEventListener('click', () => {
+    topbarOpen = true; applyTopbar();
+  });
+  $('showStripBtn').addEventListener('click', () => {
+    stripOpen = true; applyStrip();
+  });
+  $('showSidebarBtn').addEventListener('click', () => {
+    sidebarOpen = true; applySidebar();
+  });
+
+  /* ============================================================
+     RESIZE HANDLES — sidebar (width) e strip (height)
+     ============================================================ */
+
+  // Restaura tamanhos salvos.
+  try {
+    const sw = localStorage.getItem('sidebarW');
+    if (sw) sidebar.style.flexBasis = sw;
+    const sh = localStorage.getItem('stripH');
+    if (sh) document.querySelector('.thumbstrip-wrap').style.height = sh;
+  } catch(_){}
+
+  /**
+   * Liga drag-to-resize numa faixa fina (.resizer).
+   *
+   * @param {HTMLElement} handle  o elemento da faixa
+   * @param {HTMLElement} target  o painel sendo redimensionado
+   * @param {string} axis         'x' (width) ou 'y' (height)
+   * @param {number} minV, maxV   limites em px
+   * @param {string} storageKey   chave do localStorage
+   * @param {boolean} invert      true se mover na direção positiva
+   *                              do eixo DIMINUI o tamanho (sidebar:
+   *                              moving right = shrink width).
+   */
+  function bindResize(handle, target, axis, minV, maxV, storageKey, invert){
+    if (!handle) return;
+    let drag = null;
+    handle.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      const r = target.getBoundingClientRect();
+      const startPos = axis === 'x' ? e.clientX : e.clientY;
+      const startSize = axis === 'x' ? r.width : r.height;
+      drag = { startPos, startSize };
+      handle.setPointerCapture(e.pointerId);
+      handle.classList.add('dragging');
+    });
+    handle.addEventListener('pointermove', e => {
+      if (!drag) return;
+      const cur = axis === 'x' ? e.clientX : e.clientY;
+      const delta = invert ? drag.startPos - cur : cur - drag.startPos;
+      const newSize = Math.max(minV, Math.min(maxV, drag.startSize + delta));
+      if (axis === 'x') target.style.flexBasis = newSize + 'px';
+      else target.style.height = newSize + 'px';
+    });
+    const end = e => {
+      if (!drag) return;
+      try {
+        const v = axis === 'x' ? target.style.flexBasis : target.style.height;
+        if (v) localStorage.setItem(storageKey, v);
+      } catch(_){}
+      handle.classList.remove('dragging');
+      try { handle.releasePointerCapture(e.pointerId); } catch(_){}
+      drag = null;
+    };
+    handle.addEventListener('pointerup', end);
+    handle.addEventListener('pointercancel', end);
+  }
+
+  // Sidebar (largura): handle no left edge. Move pra ESQUERDA = AUMENTA largura.
+  // Então invert=true (delta = startPos - currentX).
+  bindResize($('sidebarResizer'), sidebar, 'x', 240, window.innerWidth * 0.6,
+             'sidebarW', true);
+  // Strip (altura): handle no top edge. Move pra CIMA = AUMENTA altura.
+  // invert=true (delta = startPos - currentY).
+  bindResize($('stripResizer'), document.querySelector('.thumbstrip-wrap'),
+             'y', 80, 380, 'stripH', true);
 
   /* ---------- Reage a mudança de idioma ----------
      Re-renderiza o info panel pra que strings traduzidas dinamicamente

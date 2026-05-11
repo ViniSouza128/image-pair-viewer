@@ -76,24 +76,26 @@ e País — esse é o único endpoint externo do app; somente
 lat/lon saem do dispositivo (nunca as fotos), com cache em memória
 e throttle de 1.1 s por request.
 
-## Ordenar a strip
+## Strip inferior — Abrir, Ordenar, Remover
 
-Botão **Ordenar** à esquerda da faixa de miniaturas abre um menu
-com 4 critérios:
+A coluna de ferramentas à esquerda das miniaturas tem 3 botões
+empilhados:
 
-- **Nome (A → Z)** — alfabético no nome do arquivo *(default)*
-- **Ordem de inserção** — ordem em que foram carregados
-- **Data de captura** — EXIF `DateTimeOriginal` (mais antiga primeiro)
-- **Data de modificação** — `File.lastModified` da versão editada
-  (mais recente primeiro)
+- **Abrir fotos** — adiciona mais fotos à sessão sem perder as atuais
+  (alternativa ao drag-and-drop full-page)
+- **Ordenar** (split-button) — clicando no nome cicla entre Nome →
+  Inserção → Captura → Modificação. A seta laranja à direita inverte
+  a ordem (crescente ↔ decrescente). Default: Nome crescente (A → Z).
+- **Remover** — sempre visível, em vermelho. Desabilitado quando
+  nada está selecionado. Com 2+ selecionados, vira `Remover (5)`.
 
-A escolha é persistida em `localStorage`.
+A escolha de critério e direção são persistidas em `localStorage`.
 
 ## Adicionar mais fotos à sessão
 
 Três formas de incrementar a sessão sem perder o estado atual:
 
-1. **Botão `+` na topbar** — abre o seletor de arquivos
+1. **Botão "Abrir fotos"** na coluna de ferramentas da strip
 2. **Arrastar arquivos** sobre qualquer parte da página — quando o
    usuário começa a arrastar, um overlay laranja com borda tracejada
    aparece ("Solte as fotos aqui") indicando a área de drop. Funciona
@@ -104,6 +106,26 @@ Pares com ID já presente são silenciosamente ignorados; um toast
 sumariza "X novo(s) par(es) · Y já estava(m) na sessão". Apenas
 arquivos com MIME `image/*` ou extensão de imagem são aceitos —
 outros tipos são descartados.
+
+## Recolher painéis e redimensionar
+
+Cada painel pode ser recolhido independentemente, expandindo a visão
+central:
+
+- **Topbar** — botão `⌃` no canto direito da topbar; atalho **`T`**
+- **Strip** (faixa de miniaturas) — atalho **`B`**
+- **Sidebar** (painel direito) — botão `›` no header da sidebar ou
+  pelo botão de Info na topbar; atalho **`I`**
+
+Quando recolhidos, uma aba clicável aparece na borda correspondente
+pra reabrir. O estado é persistido entre sessões.
+
+**Resize**: arraste a borda interna da sidebar (esquerda) ou do
+strip (topo) pra ajustar tamanho. O tamanho fica salvo em
+`localStorage`.
+
+`F11` (tela cheia nativa do navegador) e a tecla `F` (Fullscreen API
+via JS) continuam funcionando paralelamente — não interferem entre si.
 
 ## Seleção múltipla e remoção
 
