@@ -76,28 +76,53 @@ e País — esse é o único endpoint externo do app; somente
 lat/lon saem do dispositivo (nunca as fotos), com cache em memória
 e throttle de 1.1 s por request.
 
-## Strip inferior — ordenar, adicionar, remover
+## Ordenar a strip
 
-A barra de ferramentas à esquerda da faixa de miniaturas:
+Botão **Ordenar** à esquerda da faixa de miniaturas abre um menu
+com 4 critérios:
 
-- **Ordenar** — abre um menu com 4 critérios:
-  - **Nome (A → Z)** — alfabético no nome do arquivo *(default)*
-  - **Ordem de inserção** — ordem em que foram carregados
-  - **Data de captura** — EXIF `DateTimeOriginal` (mais antiga primeiro)
-  - **Data de modificação** — `File.lastModified` da versão editada
-    (mais recente primeiro)
-  A escolha é persistida em `localStorage`.
-- **Adicionar mais fotos (+)** — abre o seletor pra anexar novos
-  arquivos à sessão atual sem perder os já carregados. Pares com
-  ID já presente são silenciosamente ignorados. Também aceita
-  drag-and-drop direto no app já carregado.
-- **Selecionar** — entra em modo seleção múltipla. Em modo:
-  - clique no thumb alterna a seleção
-  - **Remover** descarta os pares selecionados (com confirmação)
-  - **Cancelar** sai do modo
-  Atalhos alternativos pra entrar em seleção:
-  - **Ctrl/⌘+clique** no thumb (desktop)
-  - **Pressione e segure** o thumb por ~500 ms (mobile)
+- **Nome (A → Z)** — alfabético no nome do arquivo *(default)*
+- **Ordem de inserção** — ordem em que foram carregados
+- **Data de captura** — EXIF `DateTimeOriginal` (mais antiga primeiro)
+- **Data de modificação** — `File.lastModified` da versão editada
+  (mais recente primeiro)
+
+A escolha é persistida em `localStorage`.
+
+## Adicionar mais fotos à sessão
+
+Três formas de incrementar a sessão sem perder o estado atual:
+
+1. **Botão `+` na topbar** — abre o seletor de arquivos
+2. **Arrastar arquivos** sobre qualquer parte da página — quando o
+   usuário começa a arrastar, um overlay laranja com borda tracejada
+   aparece ("Solte as fotos aqui") indicando a área de drop. Funciona
+   tanto na tela inicial quanto durante o uso do app.
+3. **Drop direto na tela inicial** (antes de carregar qualquer foto)
+
+Pares com ID já presente são silenciosamente ignorados; um toast
+sumariza "X novo(s) par(es) · Y já estava(m) na sessão". Apenas
+arquivos com MIME `image/*` ou extensão de imagem são aceitos —
+outros tipos são descartados.
+
+## Seleção múltipla e remoção
+
+Cada miniatura tem uma **bolinha de seleção** no canto superior
+direito (sutil em desktop, aparece em hover; sempre visível em
+touch). Comportamento estilo Windows Explorer / Finder:
+
+- Clique na **bolinha** → alterna a seleção daquele par (sem navegar)
+- Clique no **corpo do thumb** → navega (não altera seleção)
+- **Ctrl/⌘+clique** anywhere no thumb → alterna seleção
+- **Shift+clique** → seleciona range entre âncora e clicado
+- **Ctrl+A** → seleciona todos os pares
+- **Delete** ou **Backspace** → remove selecionados (com modal de confirmação)
+- Clique no **espaço vazio da strip** → limpa seleção
+- **Esc** → limpa seleção
+- **Long-press** ~500 ms no thumb (mobile) → alterna seleção
+
+Quando há ≥1 par selecionado, uma barra inline aparece à direita do
+botão Ordenar mostrando contagem + Remover + Limpar.
 
 ## Idioma
 

@@ -691,43 +691,76 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
 .thumb .num{position:absolute;left:5px;top:4px;font-size:10px;font-weight:700;color:#fff;
   background:rgba(0,0,0,.55);padding:1px 5px;border-radius:4px;
   font-family:ui-monospace,Consolas,monospace}
-/* Checkmark de seleção — escondido por padrão; aparece via .selected.
-   Posicionado no canto superior direito (oposto ao .num). */
-.thumb .checkmark{position:absolute;top:5px;right:5px;width:20px;height:20px;
-  border-radius:50%;background:var(--accent);display:none;
-  align-items:center;justify-content:center;
-  box-shadow:0 1px 4px rgba(0,0,0,.45),0 0 0 2px rgba(8,9,12,.5)}
-.thumb .checkmark svg{width:12px;height:12px;color:#15161b}
-.thumb.selected .checkmark{display:flex}
-/* Anel laranja + leve overlay quente quando selecionado. */
+/* Bolinha de seleção (.sel-toggle) — toggle redondo no canto sup. direito.
+   Visibilidade:
+     - desktop (com hover): escondido por padrão, aparece em hover do thumb
+     - touch (sem hover): sempre semi-visível, fica opaco quando selecionado
+     - qualquer thumb selecionado: sempre 100% visível
+   Estados visuais:
+     - vazio: anel branco translúcido sobre fundo escurinho
+     - cheio (selected): preenchido com cor de accent + checkmark dentro
+   pointer-events fica sempre auto pra capturar clique INDEPENDENTE do
+   clique no resto do thumb (queremos circle = toggle, body = navegar). */
+.thumb .sel-toggle{position:absolute;top:6px;right:6px;width:22px;height:22px;
+  border-radius:50%;border:2px solid rgba(255,255,255,.85);
+  background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;
+  cursor:pointer;z-index:3;opacity:0;
+  transition:opacity .15s,background .15s,border-color .15s,transform .12s;
+  box-shadow:0 0 0 1px rgba(0,0,0,.35),0 1px 4px rgba(0,0,0,.45)}
+.thumb:hover .sel-toggle{opacity:1}
+.thumb .sel-toggle:hover{transform:scale(1.12)}
+.thumb .sel-toggle svg{width:13px;height:13px;color:#15161b;opacity:0;
+  transition:opacity .12s}
+.thumb.selected .sel-toggle{opacity:1;background:var(--accent);border-color:var(--accent)}
+.thumb.selected .sel-toggle svg{opacity:1}
+/* Em devices touch (hover:none), bolinha sempre semi-visível
+   pra ser descoberta sem hover. */
+@media (hover:none){
+  .thumb .sel-toggle{opacity:.85}
+}
+/* Anel laranja quando o thumb está selecionado. */
 .thumb.selected{border-color:var(--accent);
   box-shadow:0 0 0 2px rgba(255,174,60,.35),inset 0 0 0 999px rgba(255,174,60,.08)}
 
 /* ==========================================================================
-   STRIP TOOLS — barra de ações antes das miniaturas
+   STRIP TOOLS — barra de ações à esquerda das miniaturas
 
-   Contém os botões de Ordenar, Adicionar mais e Selecionar. Quando
-   o usuário entra em "selection mode", essa barra é substituída pela
-   barra de seleção (.strip-tools-selection) que mostra contagem +
-   botões Remover / Cancelar.
+   Contém apenas o dropdown de ordenação no estado padrão. Quando o
+   usuário tem pares selecionados, uma "barra de seleção" inline
+   aparece à direita do Sort com contagem + Remover + Limpar.
 
-   border-right separa visualmente os tools da faixa de miniaturas.
+   A bolinha de seleção em cada thumb (.sel-toggle) é o ponto de
+   entrada principal — não temos mais um botão "Selecionar" dedicado.
+
+   Add More mudou pra topbar (perto do botão Recarregar) e também
+   funciona via drag-and-drop em qualquer parte da página.
    ========================================================================== */
-.strip-tools{display:flex;align-items:center;gap:6px;padding:0 12px 0 14px;
-  flex-shrink:0;border-right:1px solid var(--line-2);position:relative;height:100%}
+.strip-tools{display:flex;align-items:center;gap:8px;padding:0 14px;
+  flex-shrink:0;position:relative;height:100%;
+  border-right:1px solid var(--line-2)}
 .strip-tools[hidden]{display:none}
-.strip-tool{display:flex;align-items:center;gap:6px;padding:0 10px;height:32px;
-  background:transparent;border:1px solid var(--line);border-radius:8px;
-  color:var(--fg-2);cursor:pointer;font-size:12px;font-family:inherit;
-  font-weight:500;transition:all var(--t-fast);white-space:nowrap}
-.strip-tool:hover{background:var(--bg-2);color:var(--fg);border-color:var(--bg-3)}
+.strip-tool{display:inline-flex;align-items:center;gap:6px;padding:0 12px;height:34px;
+  background:var(--bg-2);border:1px solid var(--line);border-radius:8px;
+  color:var(--fg);cursor:pointer;font-size:12px;font-family:inherit;
+  font-weight:500;transition:background var(--t-fast),border-color var(--t-fast),color var(--t-fast);
+  white-space:nowrap}
+.strip-tool:hover{background:var(--bg-3);border-color:var(--bg-3)}
 .strip-tool svg{width:14px;height:14px;flex-shrink:0}
-.strip-tool.icon-only{padding:0;width:32px;justify-content:center}
-.strip-tool.danger{color:#ff8e8e;border-color:rgba(255,80,80,.3)}
-.strip-tool.danger:hover{background:rgba(255,80,80,.12);color:#ffabab;border-color:rgba(255,80,80,.5)}
+.strip-tool.icon-only{padding:0;width:34px;justify-content:center}
+.strip-tool.danger{color:#ff8e8e;background:rgba(255,80,80,.08);border-color:rgba(255,80,80,.25)}
+.strip-tool.danger:hover{background:rgba(255,80,80,.16);color:#ffabab;border-color:rgba(255,80,80,.45)}
 .strip-tool .chev{width:10px;height:10px;opacity:.7}
-/* Sort menu — popup acima do botão (bottom positioned). */
-.sort-menu{position:absolute;bottom:calc(100% + 6px);left:14px;
+
+/* Barra de seleção inline (visível só quando selection.size > 0). */
+.sel-bar{display:flex;align-items:center;gap:6px;padding-left:8px;
+  margin-left:4px;border-left:1px solid var(--line-2);
+  animation:menu-in .14s ease}
+.sel-bar[hidden]{display:none}
+/* Sort menu — popup ACIMA do botão (bottom positioned).
+   IMPORTANTE: a regra base .menu define top/right. Aqui precisamos
+   resetar pra auto, senão o box é "esticado" entre top e bottom
+   resultando em altura ~0 (bug: o menu existia mas era invisível). */
+.sort-menu{top:auto;right:auto;bottom:calc(100% + 6px);left:14px;
   min-width:240px;animation:menu-in .14s ease}
 .sort-menu button{display:flex;align-items:center;gap:10px;width:100%;
   padding:8px 12px;background:transparent;border:none;color:var(--fg);
@@ -744,13 +777,17 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
   font-feature-settings:"tnum";white-space:nowrap}
 
 @media (max-width:900px){
-  /* Em mobile, encolher tools: esconder labels textuais, manter ícones. */
-  .strip-tool .lbl{display:none}
-  .strip-tool{padding:0;width:32px;justify-content:center}
-  .strip-tool.icon-only{width:32px}
-  .strip-tools{padding:0 8px;gap:4px}
-  .sort-menu{left:8px;min-width:200px}
-  .sel-count{padding:0 8px 0 2px;font-size:11px}
+  /* Mobile: compacta tudo. O sort mantém label "Nome"/"Inserção"
+     pra o usuário ver o critério ativo; remove só a label do botão
+     Remover (sobra ícone de lixeira). */
+  #removeSelBtn .lbl{display:none}
+  #removeSelBtn{padding:0;width:34px;justify-content:center}
+  .strip-tool{padding:0 10px;height:30px;font-size:11px}
+  .strip-tool.icon-only{padding:0;width:30px;height:30px}
+  .strip-tools{padding:0 10px;gap:6px}
+  .sort-menu{left:10px;min-width:200px}
+  .sel-count{padding:0 6px;font-size:11px}
+  .sel-bar{padding-left:6px;margin-left:2px;gap:4px}
 }
 
 /* ==========================================================================
@@ -927,6 +964,34 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
 .app.ui-hidden .navbtn,.app.ui-hidden .overlay-bottom,
 .app.ui-hidden .badge,.app.ui-hidden .solo-badge{opacity:0;pointer-events:none;
   transition:opacity var(--t-med)}
+
+/* ==========================================================================
+   DRAG OVERLAY — feedback explícito durante drag de arquivos
+
+   Cobre a página inteira com uma borda tracejada laranja + card central
+   "Solte aqui". Disparado por dragenter no document quando o usuário
+   está arrastando arquivos (não outros tipos de payload).
+
+   pointer-events:none é CRÍTICO — sem isso, o overlay capturaria os
+   eventos de drag e o navegador NUNCA dispararia o drop. Com isso,
+   os eventos passam direto pro document handler que os processa.
+   ========================================================================== */
+.drag-overlay{position:fixed;inset:0;z-index:300;pointer-events:none;
+  background:rgba(255,174,60,.06);
+  border:3px dashed var(--accent);border-radius:12px;
+  display:flex;align-items:center;justify-content:center;
+  margin:14px;
+  animation:drag-in .12s ease;
+  backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px)}
+.drag-overlay[hidden]{display:none}
+.drag-card{background:rgba(8,9,12,.92);border:1px solid var(--accent);
+  padding:26px 36px;border-radius:14px;display:flex;flex-direction:column;
+  align-items:center;gap:8px;font-size:14px;text-align:center;
+  box-shadow:0 20px 60px rgba(0,0,0,.6)}
+.drag-card svg{width:42px;height:42px;color:var(--accent);margin-bottom:4px}
+.drag-card .drag-title{font-size:16px;font-weight:600;color:var(--fg)}
+.drag-card .drag-sub{font-size:12px;color:var(--fg-3);max-width:300px;line-height:1.4}
+@keyframes drag-in{from{opacity:0;transform:scale(.98)}to{opacity:1;transform:none}}
 </style>
 </head>
 <body>
@@ -1071,6 +1136,14 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
          e persiste a escolha em localStorage. -->
     <button class="icon-btn lang-btn" id="btnLang" title="Idioma / Language" aria-label="Idioma">
       <span id="langLabel">PT</span>
+    </button>
+    <!-- Adicionar mais fotos à sessão (incremental). Funciona em
+         paralelo ao drag-and-drop full-page e ao botão "+" da strip
+         (todos disparam o mesmo input file escondido).
+         Posicionado antes de Reload pra agrupar logicamente as ações
+         de "input" no topbar. -->
+    <button class="icon-btn" id="btnAddMore" data-i18n-title="ui.addMore" data-i18n-aria="ui.addMore" title="Adicionar mais fotos" aria-label="Adicionar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
     </button>
     <!-- Recarregar lote: descarta os atuais (revoga Object URLs) e
          volta pra tela de upload. -->
@@ -1297,16 +1370,16 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
   via atributo `hidden` pelo JS).
 -->
 <footer class="thumbstrip-wrap">
-  <!-- Ferramentas modo normal -->
+  <!-- Strip tools: SOMENTE Sort no estado padrão. Quando há pares
+       selecionados, a .sel-bar (filha) revela contagem + remover +
+       limpar inline ao lado do botão de ordenar. -->
   <div class="strip-tools" id="stripTools">
-    <!-- Botão Ordenar (abre sort-menu acima) -->
+    <!-- Sort dropdown -->
     <button class="strip-tool" id="sortBtn" data-i18n-title="ui.sort" title="Ordenar" aria-haspopup="menu" aria-expanded="false">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M6 12h12M10 18h4"/></svg>
       <span class="lbl" id="sortLabel" data-i18n="sort.name">Nome</span>
       <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
     </button>
-    <!-- Menu popup de ordenação (anchored ao sortBtn).
-         Cada item dispara applySort(key). Item ativo recebe .active. -->
     <div class="menu sort-menu" id="sortMenu" role="menu" hidden>
       <button data-sort="name" class="active" role="menuitem">
         <svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
@@ -1325,35 +1398,45 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
         <span data-i18n="sort.modified.full">Modificação (recente → antiga)</span>
       </button>
     </div>
-    <!-- Adicionar mais fotos (incremental): abre file picker e
-         processa os arquivos sem perder a sessão atual. -->
-    <button class="strip-tool icon-only" id="addMoreBtn" data-i18n-title="ui.addMore" data-i18n-aria="ui.addMore" title="Adicionar mais fotos" aria-label="Adicionar">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-    </button>
-    <!-- Input de arquivo escondido — disparado por addMoreBtn.
-         Reutiliza handleFiles com {append:true}. -->
-    <input type="file" id="addMoreInput" multiple accept="image/*" style="display:none">
-    <!-- Entrar em modo seleção (toggle múltiplo). Alternativas
-         desktop: Ctrl/Cmd+clique no thumb. Mobile: long-press. -->
-    <button class="strip-tool icon-only" id="selectModeBtn" data-i18n-title="ui.select" data-i18n-aria="ui.select" title="Selecionar" aria-label="Selecionar">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-    </button>
+
+    <!-- Barra de seleção INLINE — aparece quando há ≥1 selecionado.
+         Mostrada/escondida por JS via toggle do atributo hidden. -->
+    <div class="sel-bar" id="selBar" hidden>
+      <span class="sel-count" id="selCount">0</span>
+      <button class="strip-tool danger" id="removeSelBtn" data-i18n-title="ui.remove" title="Remover" aria-label="Remover">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        <span class="lbl" data-i18n="ui.remove">Remover</span>
+      </button>
+      <button class="strip-tool icon-only" id="cancelSelBtn" data-i18n-title="ui.cancel" data-i18n-aria="ui.cancel" title="Limpar seleção" aria-label="Cancelar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
   </div>
 
-  <!-- Ferramentas modo seleção (substitui as normais quando ativo) -->
-  <div class="strip-tools strip-tools-selection" id="stripToolsSelection" hidden>
-    <span class="sel-count" id="selCount">0</span>
-    <button class="strip-tool danger" id="removeSelBtn" data-i18n-title="ui.remove" title="Remover" aria-label="Remover">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-      <span class="lbl" data-i18n="ui.remove">Remover</span>
-    </button>
-    <button class="strip-tool icon-only" id="cancelSelBtn" data-i18n-title="ui.cancel" data-i18n-aria="ui.cancel" title="Cancelar" aria-label="Cancelar">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-    </button>
-  </div>
+  <!-- Input file escondido — ainda usado pelo botão "+" da topbar via
+       trigger programático (.click()). Mantido aqui pra preservar
+       layout do <input> com display:none seguro. -->
+  <input type="file" id="addMoreInput" multiple accept="image/*" style="display:none">
 
   <div class="thumbstrip" id="strip"></div>
 </footer>
+
+<!--
+  =================== DRAG OVERLAY ===================
+  Aparece em qualquer parte da página quando o usuário está arrastando
+  arquivos de imagem. Borda tracejada laranja em toda a viewport +
+  card central com a mensagem "Solte aqui".
+
+  pointer-events:none (no CSS) é OBRIGATÓRIO — caso contrário, o
+  overlay capturaria os eventos de drag e o drop nunca dispararia.
+-->
+<div class="drag-overlay" id="dragOverlay" hidden>
+  <div class="drag-card">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+    <span class="drag-title" data-i18n="drag.title">Solte as fotos aqui</span>
+    <span class="drag-sub" data-i18n="drag.sub">Originais e versões editadas — serão adicionadas à sessão</span>
+  </div>
+</div>
 
 <!--
   =================== MODAL DE AJUDA ===================
@@ -1403,6 +1486,8 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
       <div><kbd>F</kbd></div><div data-i18n="help.kb.fs">Tela cheia</div>
       <div><kbd>I</kbd></div><div data-i18n="help.kb.info">Painel de informações</div>
       <div><kbd>S</kbd></div><div data-i18n="help.kb.mode">Trocar de modo</div>
+      <div><kbd>Ctrl</kbd>+<kbd>A</kbd></div><div data-i18n="help.kb.selAllDesc">Selecionar todos os pares</div>
+      <div><kbd>Delete</kbd></div><div data-i18n="help.kb.delDesc">Remover pares selecionados</div>
       <div><kbd>?</kbd></div><div data-i18n="help.kb.help">Esta ajuda</div>
     </div>
 
@@ -1540,6 +1625,8 @@ const I18N = {
     'help.kb.reset': 'Resetar zoom', 'help.kb.fs': 'Tela cheia',
     'help.kb.info': 'Painel de informações', 'help.kb.mode': 'Trocar de modo',
     'help.kb.help': 'Esta ajuda',
+    'help.kb.selAll': 'Ctrl+A', 'help.kb.selAllDesc': 'Selecionar todos os pares',
+    'help.kb.del': 'Delete', 'help.kb.delDesc': 'Remover pares selecionados',
     'help.m.wheel': 'Roda', 'help.m.wheelDesc': 'Zoom (ancorado ao cursor)',
     'help.m.drag': 'Arrastar', 'help.m.dragDesc': 'Mover slider · Pan quando há zoom',
     'help.m.press': 'Pressionar (Solo)', 'help.m.pressDesc': 'Segurar para alternar Antes/Depois',
@@ -1589,6 +1676,9 @@ const I18N = {
     'notif.adding': 'Adicionando…',
     'select.tip.desktop': 'Ctrl+clique pra selecionar várias',
     'select.tip.touch': 'Mantenha o toque pra selecionar várias',
+    'drag.title': 'Solte as fotos aqui',
+    'drag.sub': 'Originais e versões editadas — serão adicionadas à sessão',
+    'drag.sub.initial': 'Originais e versões editadas, todas juntas',
   },
   'en-US': {
     'upload.instruction': 'Upload your set of photos — originals and edited versions, all together. Pairs are identified automatically from filenames.',
@@ -1623,6 +1713,8 @@ const I18N = {
     'help.kb.reset': 'Reset zoom', 'help.kb.fs': 'Fullscreen',
     'help.kb.info': 'Info panel', 'help.kb.mode': 'Switch mode',
     'help.kb.help': 'This help',
+    'help.kb.selAll': 'Ctrl+A', 'help.kb.selAllDesc': 'Select all pairs',
+    'help.kb.del': 'Delete', 'help.kb.delDesc': 'Remove selected pairs',
     'help.m.wheel': 'Wheel', 'help.m.wheelDesc': 'Zoom (anchored to cursor)',
     'help.m.drag': 'Drag', 'help.m.dragDesc': 'Move slider · Pan when zoomed',
     'help.m.press': 'Press (Solo)', 'help.m.pressDesc': 'Hold to flip Before/After',
@@ -1672,6 +1764,9 @@ const I18N = {
     'notif.adding': 'Adding…',
     'select.tip.desktop': 'Ctrl+click to select multiple',
     'select.tip.touch': 'Long-press to select multiple',
+    'drag.title': 'Drop photos here',
+    'drag.sub': 'Originals and edited versions — will be added to the session',
+    'drag.sub.initial': 'Originals and edited versions, all together',
   },
 };
 
@@ -2357,8 +2452,9 @@ function bindUploadUI(){
   // Input principal (tela inicial) — substitui DATA.
   fileInput.addEventListener('change', e => handleFiles(e.target.files));
 
-  // Input "+" da strip (modo append) — adiciona à sessão existente.
-  // O input fica permanentemente no DOM; o botão "+" o aciona.
+  // Input "+" (modo append) — adiciona à sessão existente. Acionado
+  // pelo botão da topbar (#btnAddMore). O input fica permanentemente
+  // no DOM com display:none.
   if (addMoreInput){
     addMoreInput.addEventListener('change', e => {
       handleFiles(e.target.files, { append: true });
@@ -2369,37 +2465,87 @@ function bindUploadUI(){
     });
   }
 
-  // "dragDepth" trata o problema do dragenter/dragleave disparar pra
-  // cada filho ao mover sobre a árvore. A gente só remove a classe
-  // is-drag quando profundidade volta a zero.
+  /* --------------------------------------------------------------
+     DRAG & DROP NA PÁGINA INTEIRA + OVERLAY EXPLÍCITO
+
+     Comportamento:
+       - Qualquer drag de ARQUIVOS sobre a página dispara o overlay
+         (.drag-overlay) com borda tracejada laranja + card "Solte
+         aqui". Drags de outras coisas (texto, URL) são ignorados.
+       - Drop em qualquer lugar é roteado: tela inicial → carga
+         inicial (substitui DATA); app rodando → modo append.
+       - Só arquivos com MIME `image/*` ou extensão de imagem são
+         considerados. Não-imagens são descartadas silenciosamente.
+
+     CONTADOR dragDepth: dragenter/dragleave disparam pra cada elemento
+     filho que o cursor cruza dentro da árvore. Usamos um contador
+     pra só esconder o overlay quando profundidade voltar a 0
+     (dragenter incrementa, dragleave decrementa).
+
+     CHECAGEM "tem arquivo?": em dragenter/over, dataTransfer.files
+     vem vazio por questões de segurança/privacy. O que está
+     disponível é dataTransfer.types (sempre) e dataTransfer.items
+     (kind+type, na maioria dos browsers). Usamos types pra detectar
+     "Files" presentes, sem saber AINDA quais são. O filtro de
+     imagens acontece no drop.
+     -------------------------------------------------------------- */
+  const dragOverlay = document.getElementById('dragOverlay');
   let dragDepth = 0;
-  window.addEventListener('dragenter', e => {
-    // Se a tela de upload está visível, destaca o card.
-    // Se o app já está rodando, ainda permitimos drop (modo append),
-    // mas sem destaque visual (UX menos invasiva no meio do uso).
-    if (!uploadScreen.hidden){
-      dragDepth++;
-      uploadScreen.classList.add('is-drag');
+
+  /** Retorna true se o evento tem ao menos um arquivo sendo arrastado.
+   *  Em dragenter/over não dá pra ler files diretamente — só types. */
+  function dragHasFiles(dt){
+    if (!dt) return false;
+    if (dt.types && dt.types.length){
+      // dt.types pode ser DOMStringList ou Array dependendo do browser.
+      for (let i = 0; i < dt.types.length; i++){
+        if (dt.types[i] === 'Files') return true;
+      }
     }
+    return false;
+  }
+  function showDrag(){
+    if (dragOverlay) dragOverlay.hidden = false;
+    if (!uploadScreen.hidden) uploadScreen.classList.add('is-drag');
+  }
+  function hideDrag(){
+    if (dragOverlay) dragOverlay.hidden = true;
+    uploadScreen.classList.remove('is-drag');
+    dragDepth = 0;
+  }
+
+  window.addEventListener('dragenter', e => {
+    if (!dragHasFiles(e.dataTransfer)) return;
+    dragDepth++;
+    if (dragDepth === 1) showDrag();
   });
   window.addEventListener('dragleave', e => {
-    if (uploadScreen.hidden) return;
+    if (!dragHasFiles(e.dataTransfer)) return;
     dragDepth--;
-    if (dragDepth <= 0){ dragDepth = 0; uploadScreen.classList.remove('is-drag'); }
+    if (dragDepth <= 0) hideDrag();
   });
-  // preventDefault no dragover é OBRIGATÓRIO pro browser permitir drop.
-  window.addEventListener('dragover', e => { e.preventDefault(); });
+  // preventDefault no dragover é OBRIGATÓRIO — sem isso o browser
+  // recusa drops na página (default = "não dropável"). Só fazemos
+  // preventDefault se for um drag de arquivos pra não interferir
+  // em outros drags (text selection, etc.).
+  window.addEventListener('dragover', e => {
+    if (dragHasFiles(e.dataTransfer)) e.preventDefault();
+  });
   window.addEventListener('drop', e => {
+    if (!dragHasFiles(e.dataTransfer)){ hideDrag(); return; }
     e.preventDefault();
-    dragDepth = 0;
-    uploadScreen.classList.remove('is-drag');
-    if (!e.dataTransfer || !e.dataTransfer.files || !e.dataTransfer.files.length) return;
-    // Decide entre modo inicial e modo append baseado em qual tela
-    // está ativa. Se app está rodando (upload escondido), append.
+    hideDrag();
+    // Filtra: somente arquivos de imagem (por MIME ou extensão).
+    const all = [...(e.dataTransfer.files || [])];
+    const images = all.filter(f =>
+      (f.type && f.type.startsWith('image/')) || IMG_RE.test(f.name)
+    );
+    if (!images.length) return;
+    // Roteia: tela inicial → inicial; app rodando → append.
     if (!uploadScreen.hidden){
-      handleFiles(e.dataTransfer.files);
+      handleFiles(images);
     } else if (_onAppendBatch){
-      handleFiles(e.dataTransfer.files, { append: true });
+      handleFiles(images, { append: true });
     }
   });
 }
@@ -2477,9 +2623,11 @@ function startApp(DATA){
 
      currentSort — modo de ordenação ativo. Persistido em localStorage
        sob a chave 'sort'. Default: 'name' (alfabético).
-     selection  — Set<number> de índices selecionados (modo seleção).
-     selectionMode — bool: true quando o usuário está em modo seleção
-       (clique em thumb toggla em vez de navegar).
+     selection  — Set<number> de índices selecionados. NÃO HÁ flag
+       "modo seleção" separada: o "modo" é IMPLÍCITO em selection.size>0.
+     selectionAnchor — último índice "primary" (último Ctrl-click,
+       Shift-click ou click na bolinha). Usado pelo Shift-click como
+       ponto inicial do range select, igual Windows Explorer.
 
      Comparadores SORT_COMPARATORS retornam <0 (a antes de b), 0,
      ou >0. Items sem o campo de sort caem pro fim usando ±Infinity.
@@ -2511,8 +2659,14 @@ function startApp(DATA){
     } catch(_){}
     return 'name';
   })();
+  /* ----- MODELO DE SELEÇÃO (estilo Windows Explorer / Finder) -----
+     Não existe mais "modo seleção" explícito. A seleção é IMPLÍCITA:
+     se selection.size > 0, a UI mostra a barra de ações; senão não.
+
+     selectionAnchor é o último índice "primary" — usado pelo Shift-click
+     pra range select. Definido pelo último toggle/clique deliberado. */
   const selection = new Set();
-  let selectionMode = false;
+  let selectionAnchor = null;
 
   /**
    * Re-ordena DATA conforme currentSort, preservando a foto atualmente
@@ -2537,8 +2691,12 @@ function startApp(DATA){
 
   /**
    * (Re)constrói o conteúdo da strip baseado no estado atual de
-   * DATA + selection. Limpa filhos anteriores. Chama activateThumb()
-   * pra destacar o thumb da foto atual.
+   * DATA + selection. Limpa filhos anteriores. Cada thumb ganha:
+   *   - <img>      thumb visual
+   *   - <span.num> ID em monospace (canto sup. esquerdo)
+   *   - <button.sel-toggle> bolinha de seleção (canto sup. direito)
+   * O .sel-toggle é o ponto de entrada principal pra seleção —
+   * tem seu próprio click handler que faz toggle SEM navegar.
    */
   function rebuildStrip(){
     strip.innerHTML = '';
@@ -2549,9 +2707,9 @@ function startApp(DATA){
       tEl.innerHTML =
         `<img loading="lazy" src="${item.t || item.b.src}" alt="">` +
         `<span class="num">${item.id}</span>` +
-        `<span class="checkmark" aria-hidden="true">` +
-          `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>` +
-        `</span>`;
+        `<button class="sel-toggle" tabindex="-1" aria-label="${t('ui.select')}">` +
+          `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>` +
+        `</button>`;
       bindThumbInteractions(tEl, i);
       strip.appendChild(tEl);
     });
@@ -2559,46 +2717,74 @@ function startApp(DATA){
   }
 
   /**
-   * Liga os listeners de interação num thumb específico:
-   *   - clique normal: navega (load) OU toggla seleção (se em mode)
-   *   - Ctrl/Cmd+clique: entra em modo seleção + toggla
-   *   - long-press touch (>=500ms sem mover): entra em modo seleção + toggla
-   *   - context menu (botão direito): também entra em modo seleção
+   * Liga os listeners de interação num thumb. Comportamento estilo
+   * Windows Explorer / macOS Finder:
    *
-   * O long-press é cancelado se o usuário começar a arrastar (scroll
-   * horizontal da strip) ou levantar o dedo antes do timer.
+   *   - Click na .sel-toggle (bolinha) → toggla seleção daquele i,
+   *     SEM navegar. Define selectionAnchor.
+   *   - Click no resto do thumb SEM modificador → navega (load).
+   *     Não modifica a seleção.
+   *   - Ctrl/Cmd+click (anywhere) → toggla seleção (não navega).
+   *     Define selectionAnchor.
+   *   - Shift+click (anywhere) → range select de selectionAnchor
+   *     até i. Se anchor é null, age como Ctrl+click.
+   *   - Long-press touch (≥500ms parado) → toggla seleção (mobile
+   *     equivalente do Ctrl+click).
+   *   - Right-click (contextmenu) → também toggla (atalho extra).
+   *
+   * O click do circle usa stopPropagation pra impedir que dispare
+   * o click handler do thumb body (que faria load).
    */
   function bindThumbInteractions(tEl, i){
+    const circle = tEl.querySelector('.sel-toggle');
+    circle.addEventListener('click', e => {
+      e.stopPropagation();
+      e.preventDefault();
+      toggleSelect(i);
+      selectionAnchor = i;
+    });
+
     tEl.addEventListener('click', e => {
-      if (e.ctrlKey || e.metaKey){
-        if (!selectionMode) enterSelectionMode();
-        toggleSelect(i);
+      // Click no circle já foi tratado acima (stopPropagation).
+      if (e.target.closest('.sel-toggle')) return;
+
+      if (e.shiftKey){
+        // Shift+click: range select. Se não há anchor, age como toggle.
+        if (selectionAnchor == null){ toggleSelect(i); selectionAnchor = i; return; }
+        selectRange(selectionAnchor, i);
         return;
       }
-      if (selectionMode){ toggleSelect(i); return; }
+      if (e.ctrlKey || e.metaKey){
+        toggleSelect(i);
+        selectionAnchor = i;
+        return;
+      }
+      // Click normal: navega. Não mexe na seleção (pra preservar
+      // multi-seleção em andamento e permitir navegar pra examinar
+      // pares antes de decidir remover).
       load(i);
     });
+
     tEl.addEventListener('contextmenu', e => {
       e.preventDefault();
-      if (!selectionMode) enterSelectionMode();
       toggleSelect(i);
+      selectionAnchor = i;
     });
-    // Long-press (touch only).
+
+    // Long-press touch — toggle seleção (Ctrl-click do mobile).
     let holdTimer = null, sx = 0, sy = 0;
     tEl.addEventListener('pointerdown', e => {
       if (e.pointerType !== 'touch') return;
       sx = e.clientX; sy = e.clientY;
       holdTimer = setTimeout(() => {
         holdTimer = null;
-        if (!selectionMode) enterSelectionMode();
         toggleSelect(i);
-        // Feedback haptic se suportado.
+        selectionAnchor = i;
         if (navigator.vibrate) try { navigator.vibrate(25); } catch(_){}
       }, 500);
     });
     const cancelHold = e => {
       if (!holdTimer) return;
-      // Cancela se movimento >8px (scroll iniciado) ou ao soltar.
       if (e.type === 'pointerup' || e.type === 'pointercancel'
           || Math.hypot(e.clientX - sx, e.clientY - sy) > 8){
         clearTimeout(holdTimer); holdTimer = null;
@@ -2609,44 +2795,57 @@ function startApp(DATA){
     tEl.addEventListener('pointercancel', cancelHold);
   }
 
-  /* ---------- Modo seleção ---------- */
-  const stripTools = $('stripTools');
-  const stripToolsSel = $('stripToolsSelection');
+  /* ---------- Helpers de seleção ----------
+     A seleção é "implícita": existe quando selection.size > 0. A
+     barra de ações (.sel-bar) aparece automaticamente. Nada de flag
+     selectionMode separada — simplificação significativa do estado. */
+  const selBar = $('selBar');
   const selCountEl = $('selCount');
 
+  /**
+   * Sincroniza a UI com o Set de seleção:
+   *   - mostra/esconde .sel-bar baseado em selection.size
+   *   - atualiza a contagem
+   *   - reflete classe .selected em cada .thumb
+   */
   function updateSelectionUI(){
-    // Troca qual barra de ferramentas está visível.
-    stripTools.hidden = selectionMode;
-    stripToolsSel.hidden = !selectionMode;
-    selCountEl.textContent = t('select.count', { n: selection.size });
-    // Reflete o estado de cada thumb (sem rebuild — só toggle de classe).
+    const n = selection.size;
+    selBar.hidden = (n === 0);
+    selCountEl.textContent = t('select.count', { n });
     document.querySelectorAll('.thumb').forEach((el, idx) => {
       el.classList.toggle('selected', selection.has(idx));
     });
   }
-  function enterSelectionMode(){
-    if (selectionMode) return;
-    selectionMode = true;
-    updateSelectionUI();
-  }
-  function exitSelectionMode(){
-    selection.clear();
-    selectionMode = false;
-    updateSelectionUI();
-  }
   function toggleSelect(i){
     if (selection.has(i)) selection.delete(i);
     else selection.add(i);
-    // Se zerou seleção, sai automaticamente do modo (UX comum).
-    if (selection.size === 0){ exitSelectionMode(); return; }
+    updateSelectionUI();
+  }
+  /** Adiciona ao range from..to (ordenando os endpoints). Não limpa
+   *  seleção atual — extende a existente, como Shift+click no Explorer. */
+  function selectRange(from, to){
+    const a = Math.min(from, to), b = Math.max(from, to);
+    for (let k = a; k <= b; k++) selection.add(k);
+    updateSelectionUI();
+  }
+  function selectAll(){
+    for (let k = 0; k < DATA.length; k++) selection.add(k);
+    selectionAnchor = 0;
+    updateSelectionUI();
+  }
+  function clearSelection(){
+    if (!selection.size) return;
+    selection.clear();
+    selectionAnchor = null;
     updateSelectionUI();
   }
 
   async function removeSelected(){
     if (!selection.size) return;
+    const n = selection.size;
     const ok = await showConfirm({
       title: t('confirm.remove.title'),
-      message: t('confirm.remove.msg', { n: selection.size }),
+      message: t('confirm.remove.msg', { n }),
       confirmLabel: t('confirm.remove.yes'),
       danger: true,
     });
@@ -2662,7 +2861,7 @@ function startApp(DATA){
       DATA.splice(i, 1);
     });
     selection.clear();
-    selectionMode = false;
+    selectionAnchor = null;
     if (!DATA.length){
       // Removeu tudo — volta pra tela inicial.
       location.reload();
@@ -3320,6 +3519,13 @@ function startApp(DATA){
       } else { e.preventDefault(); }
       return;
     }
+    // Ctrl/Cmd+A → seleciona todos os pares. Convenção Win Explorer/Finder.
+    // Tratado fora do switch porque precisa checar o modifier.
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'a' || e.key === 'A')){
+      e.preventDefault();
+      selectAll();
+      return;
+    }
     switch(e.key){
       case 'ArrowLeft': load(current - 1); break;
       case 'ArrowRight': load(current + 1); break;
@@ -3340,8 +3546,16 @@ function startApp(DATA){
         if (exMenu && !exMenu.hidden){ exMenu.hidden = true; break; }
         if (sortMenu && !sortMenu.hidden){ closeSortMenu(); break; }
         if (!helpModal.hidden){ helpModal.hidden = true; break; }
-        if (selectionMode){ exitSelectionMode(); break; }
+        if (selection.size > 0){ clearSelection(); break; }
         reset();
+      } break;
+      case 'Delete': case 'Backspace': {
+        // Delete remove os pares selecionados (com modal de confirmação).
+        // Backspace também — convenção macOS pra deletar.
+        if (selection.size > 0){
+          e.preventDefault();
+          removeSelected();
+        }
       } break;
       case 'f': case 'F': toggleFullscreen(); break;
       case 'i': case 'I': toggleSidebar(); break;
@@ -3707,25 +3921,25 @@ function startApp(DATA){
   });
   refreshSortUI();
 
-  // ---- Add More (botão "+") ----
+  // ---- Add More (topbar) ----
   // Reaproveita o input #addMoreInput que já está no DOM e teve seu
   // change handler ligado em bindUploadUI. Aqui só disparamos o click.
-  $('addMoreBtn').addEventListener('click', () => {
+  $('btnAddMore').addEventListener('click', () => {
     if (addMoreInput) addMoreInput.click();
   });
 
-  // ---- Modo seleção (botão dedicated) ----
-  $('selectModeBtn').addEventListener('click', () => {
-    if (selectionMode) exitSelectionMode();
-    else {
-      enterSelectionMode();
-      // Hint contextual: como selecionar mais (Ctrl-click vs long-press)
-      const tip = isTouchDevice ? t('select.tip.touch') : t('select.tip.desktop');
-      showHint(tip, 3000);
-    }
-  });
+  // ---- Ações da barra de seleção ----
   $('removeSelBtn').addEventListener('click', removeSelected);
-  $('cancelSelBtn').addEventListener('click', exitSelectionMode);
+  $('cancelSelBtn').addEventListener('click', clearSelection);
+
+  // ---- Clique em área vazia da strip = limpar seleção ----
+  // Quando o usuário clica no padding/gap entre thumbs (não num thumb),
+  // e.target será o próprio elemento .thumbstrip — limpamos a seleção.
+  // Isso espelha o comportamento do Windows Explorer: clicar fora dos
+  // arquivos deseleciona tudo.
+  strip.addEventListener('click', e => {
+    if (e.target === strip) clearSelection();
+  });
 
   /* ---------- Reage a mudança de idioma ----------
      Re-renderiza o info panel pra que strings traduzidas dinamicamente
@@ -3734,7 +3948,9 @@ function startApp(DATA){
      Também atualiza a label do sort + a contagem da seleção. */
   document.addEventListener('lang:change', () => {
     refreshSortUI();
-    if (selectionMode) updateSelectionUI();
+    // Re-renderiza barra de seleção (texto da contagem) se houver
+    // algum par selecionado.
+    if (selection.size > 0) updateSelectionUI();
     if (DATA[current]) updateInfoPanel(DATA[current]);
   });
 
