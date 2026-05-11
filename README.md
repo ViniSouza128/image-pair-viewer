@@ -90,6 +90,14 @@ empilhados:
   nada está selecionado. Com 2+ selecionados, vira `Remover (5)`.
 
 A escolha de critério e direção são persistidas em `localStorage`.
+Os 3 elementos (Abrir, Ordenar, Remover) têm exatamente a **mesma
+altura** (`--tool-h`, derivada de `--thumb-h`).
+
+As miniaturas usam `object-fit:contain` — a foto inteira sempre cabe
+no card, podendo sobrar barras pretas nas laterais (foto vertical)
+ou em cima/embaixo (foto horizontal). Isso evita o problema comum
+do `cover` de cortar cabeças ou conteúdo importante em fotos com
+aspect ratio diferente do quadrado do card.
 
 ## Adicionar mais fotos à sessão
 
@@ -169,6 +177,12 @@ Botão na topbar (mostra a label do idioma ativo: `PT` / `EN` / `ES` /
 Detecção inicial: preferência salva (`localStorage`) →
 `navigator.language` → fallback EN-US. A escolha persiste entre
 sessões.
+
+O **título da aba** do navegador (`document.title`) acompanha o
+idioma — ex.: muda entre "Antes / Depois", "Before / After",
+"Antes / Después", "Avant / Après". O **favicon** é um SVG inline
+com as duas bolinhas (azul `--before` + laranja `--after`) que
+formam a logo da marca.
 
 ## Exportação
 

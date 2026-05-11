@@ -48,7 +48,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
-<title>image-pair-viewer</title>
+<!-- Title é fallback estático; applyI18n() sobrescreve com o texto
+     atual do h1 no idioma ativo (ex.: "Antes / Depois", "Before / After"). -->
+<title>Antes / Depois</title>
+<!-- Favicon = mesmas duas bolinhas do logo (.dot-b azul + .dot-a laranja),
+     inline como SVG. Cores idênticas às vars --before/--after do CSS.
+     Funciona em Chrome 80+, Firefox 41+, Edge 80+, Safari 14+. -->
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='9' cy='16' r='8' fill='%236cc7ff'/><circle cx='23' cy='16' r='8' fill='%23ffae3c'/></svg>">
 <style>
 /* ==========================================================================
    DESIGN TOKENS  (CSS custom properties)
@@ -725,9 +731,12 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
   border-radius:var(--thumb-radius);overflow:hidden;cursor:pointer;
   border:2px solid transparent;background:var(--bg-2);position:relative;
   transition:transform var(--t-fast),border-color var(--t-fast)}
-/* object-fit:cover = preenche o quadrado, cortando o que sobra (em vez
-   de "letterboxing"). Pra previews quadradas é o comportamento ideal. */
-.thumb img{width:100%;height:100%;object-fit:cover;display:block}
+/* object-fit:contain encaixa a foto inteira dentro do card preservando
+   o aspect ratio — pode sobrar barras pretas nas laterais (fotos
+   verticais) ou em cima/embaixo (fotos horizontais), mas evita cortar
+   conteúdo importante (cabeças, rostos, etc.). Fundo preto cobre o
+   "letterbox" sem destoar do tema dark. */
+.thumb img{width:100%;height:100%;object-fit:contain;display:block;background:#000}
 .thumb:hover{transform:translateY(-2px)}
 .thumb.active{border-color:var(--accent);box-shadow:0 0 0 2px rgba(255,174,60,.2)}
 
@@ -819,11 +828,18 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
 .strip-tool{display:inline-flex;align-items:center;
   gap:calc(var(--tool-fs) * 0.6);
   padding:0 var(--tool-pad);height:var(--tool-h);
+  /* flex:0 0 var(--tool-h) impede que o flex column estique o botão
+     quando há espaço extra (justify-content:center) — preserva a
+     altura uniforme entre os 3 elementos. */
+  flex:0 0 var(--tool-h);
   background:var(--bg-2);border:1px solid var(--line);
   border-radius:calc(var(--tool-h) * 0.23);
   color:var(--fg);cursor:pointer;font-size:var(--tool-fs);font-family:inherit;
   font-weight:500;transition:background var(--t-fast),border-color var(--t-fast),color var(--t-fast),opacity var(--t-fast);
-  white-space:nowrap;width:100%;text-align:left}
+  white-space:nowrap;width:100%;text-align:left;box-sizing:border-box}
+/* Dentro do sort-row, os filhos NÃO devem usar flex:0 0 var(--tool-h)
+   (isso fixaria a LARGURA no eixo do row). Sobrescreve. */
+.sort-row .strip-tool{flex:0 1 auto;height:100%}
 .strip-tool:hover{background:var(--bg-3);border-color:var(--bg-3)}
 .strip-tool svg{width:var(--tool-icon);height:var(--tool-icon);flex-shrink:0}
 .strip-tool .lbl{flex:1;overflow:hidden;text-overflow:ellipsis}
@@ -836,8 +852,11 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
 .strip-tool .chev{width:calc(var(--tool-icon) * 0.7);height:calc(var(--tool-icon) * 0.7);opacity:.7}
 
 /* Split-button da ordenação. Largura da direita == altura do botão
-   (quadrado), pra ficar visualmente proporcional ao escalonamento. */
-.sort-row{display:flex;width:100%;gap:0}
+   (quadrado), pra ficar visualmente proporcional ao escalonamento.
+   `height` explícito garante que os 3 elementos da strip-tools
+   (btnOpenMore, sort-row, removeSelBtn) tenham EXATAMENTE a mesma
+   altura, mesmo se o agente de layout decidir esticar o flex item. */
+.sort-row{display:flex;width:100%;gap:0;height:var(--tool-h);flex:0 0 var(--tool-h)}
 .sort-row .sort-main{flex:1;border-top-right-radius:0;border-bottom-right-radius:0;
   border-right:none;padding-right:calc(var(--tool-pad) * 0.6)}
 .sort-row .sort-dir{flex:0 0 var(--tool-h);width:var(--tool-h);padding:0;justify-content:center;
@@ -1234,7 +1253,10 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
   <div class="brand">
     <div class="logo"><span class="dot dot-b"></span><span class="dot dot-a"></span></div>
     <div class="brand-text">
-      <h1>Antes <span class="sep">/</span> <em>Depois</em></h1>
+      <!-- Título "Antes / Depois" — as duas palavras traduzem junto
+           com o idioma (reusa as chaves de badge). applyI18n() também
+           atualiza document.title pra refletir o mesmo texto na aba. -->
+      <h1><span data-i18n="badge.before">Antes</span> <span class="sep">/</span> <em data-i18n="badge.after">Depois</em></h1>
       <!-- counterText é atualizado em JS: "1 / 21" etc. -->
       <span class="counter" id="counterText">— / —</span>
     </div>
@@ -2177,6 +2199,9 @@ function applyI18n(){
   document.querySelectorAll('#langMenu [data-lang]').forEach(el => {
     el.classList.toggle('active', el.dataset.lang === currentLang);
   });
+  // Title da aba acompanha o h1 da topbar (ex.: "Antes / Depois",
+  // "Before / After", "Antes / Después", "Avant / Après").
+  document.title = t('badge.before') + ' / ' + t('badge.after');
 }
 
 /**
