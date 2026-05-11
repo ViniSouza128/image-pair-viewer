@@ -23,10 +23,13 @@ GPS coords (se presentes) NÃO são resolvidos aqui — o reverse-geocoding
 acontece em runtime no browser via Nominatim (mesma estratégia do remoto).
 
 Usage:
-  python _build.py                        # source = script dir
+  python _build.py                        # source = script dir, lang = en-US
   python _build.py --src C:\\photos       # explicit source folder
   python _build.py --out gallery.html     # explicit output path
+  python _build.py --lang pt-BR           # idioma do HTML gerado (8 opcoes)
   python _build.py --max-full 2400        # bigger embedded images
+
+Suporta os mesmos 8 idiomas do app live (en/pt/es/fr/de/it/ja/zh).
 """
 import argparse
 import base64
@@ -242,12 +245,20 @@ def fmt_size(n: int) -> str:
 
 # --------- HTML injection ---------
 
-def inject_embedded_data(html: str, data: list) -> str:
-    """Insert `window.EMBEDDED_DATA = ...;` immediately before the main <script>.
+SUPPORTED_LANGS = ("en-US", "pt-BR", "es-ES", "fr-FR", "de-DE", "it-IT", "ja-JP", "zh-CN")
+
+
+def inject_embedded_data(html: str, data: list, lang: str = "en-US") -> str:
+    """Insert `window.EMBEDDED_DATA = ...;` + `window.EMBEDDED_LANG = ...;`
+    immediately before the main <script>.
 
     The runtime detects EMBEDDED_DATA and skips the upload screen, going
-    straight to `startApp(...)`. This mirrors what the in-browser export
-    does (see `buildExportHTML` in index.html).
+    straight to `startApp(...)`. EMBEDDED_LANG (added 2026-05) preserva
+    o idioma do export — sem ele, todo HTML gerado abriria em en-US
+    (default fixo do app), ignorando a escolha do builder.
+
+    This mirrors what the in-browser export does (see `buildExportHTML`
+    in index.html).
 
     We also remove `</script>` substrings inside JSON values just in case
     a filename ever contains it — the HTML parser would otherwise close
@@ -262,9 +273,11 @@ def inject_embedded_data(html: str, data: list) -> str:
         marker = "<script>"
     json_data = json.dumps(data, ensure_ascii=False, separators=(",", ":"))
     json_data = json_data.replace("</script>", "<\\/script>")
+    json_lang = json.dumps(lang)
     inject = (
         '<script id="embeddedDataInjection">'
         'window.EMBEDDED_DATA=' + json_data + ';'
+        'window.EMBEDDED_LANG=' + json_lang + ';'
         '</script>\n'
     )
     # Insert immediately before the <script>...marker line.
@@ -285,6 +298,8 @@ def main() -> int:
     p.add_argument("--src", default=SCRIPT_DIR, help="Folder with the photos (default: script dir).")
     p.add_argument("--out", default=None, help="Output HTML path (default: <src>/comparador.html).")
     p.add_argument("--template", default=None, help="Path to index.html to use as template (default: <script-dir>/index.html).")
+    p.add_argument("--lang", default="en-US", choices=SUPPORTED_LANGS,
+                   help="Idioma do HTML gerado (default: en-US). Suportados: " + ", ".join(SUPPORTED_LANGS))
     p.add_argument("--max-full", type=int, default=2200, help="Max dimension for embedded full image.")
     p.add_argument("--quality", type=int, default=85, help="JPEG quality for full images.")
     p.add_argument("--max-thumb", type=int, default=240, help="Max dimension for thumbnail.")
@@ -341,7 +356,7 @@ def main() -> int:
 
     with open(template, "r", encoding="utf-8") as f:
         html = f.read()
-    html = inject_embedded_data(html, data)
+    html = inject_embedded_data(html, data, args.lang)
     with open(out, "w", encoding="utf-8") as f:
         f.write(html)
     size_mb = os.path.getsize(out) / (1024 * 1024)

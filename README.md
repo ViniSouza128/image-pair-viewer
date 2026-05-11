@@ -49,11 +49,21 @@ Pares incompletos (1 só arquivo com aquele ID) são ignorados.
 | `Espaço` (Solo)    | Segurar = alterna `before`/`after`         |
 | `[` `]`            | Slider ±5%                                 |
 | `+` `−`            | Zoom in / out                              |
-| `0` ou `Esc`       | Reset zoom                                 |
+| `0`                | Reset zoom                                 |
+| `Esc`              | Fecha menu/modal · limpa seleção · **expande painéis** · reseta zoom (cascata) |
 | `F`                | Tela cheia                                 |
 | `I`                | Painel de informações                      |
 | `S`                | Cicla modos                                |
+| `Ctrl`+`A`         | Seleciona todos os pares                   |
+| `Delete`           | Remove pares selecionados                  |
 | `?`                | Ajuda                                      |
+
+A tecla `Esc` segue uma **cascata de prioridade** — só executa a próxima
+ação se a anterior não se aplicar: 1) fecha um menu dropdown aberto;
+2) fecha o modal de ajuda; 3) limpa a seleção; 4) sai do modo "painéis
+recolhidos" (equivalente a clicar de novo no botão de collapse);
+5) reseta o zoom. Garante que `Esc` é um único atalho universal de
+"sair do estado atual".
 
 ## Mouse / Toque
 
@@ -225,8 +235,14 @@ botão de exportação. Útil pra processar um lote sem abrir a UI.
 python _build.py                        # usa o diretório do script
 python _build.py --src C:\photos        # pasta explícita
 python _build.py --out gallery.html     # arquivo de saída
+python _build.py --lang pt-BR           # idioma do HTML gerado
 python _build.py --max-full 2400        # imagens embutidas maiores
 ```
+
+Idiomas suportados (mesmos 8 do app live): `en-US` (default), `pt-BR`,
+`es-ES`, `fr-FR`, `de-DE`, `it-IT`, `ja-JP`, `zh-CN`. O HTML gerado
+preserva o idioma escolhido via `window.EMBEDDED_LANG`, e ainda permite
+trocar de idioma via o dropdown da topbar quando aberto.
 
 Requer Python 3.10+ e Pillow (`pip install pillow`). O script:
 

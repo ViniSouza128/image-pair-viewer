@@ -1752,7 +1752,8 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
       <div><kbd data-i18n="help.kb.space">Espaço</kbd></div><div data-i18n="help.kb.spaceDesc">(Modo Solo) Segurar para alternar Antes/Depois</div>
       <div><kbd>[</kbd><kbd>]</kbd></div><div data-i18n="help.kb.slider">Mover slider 5%</div>
       <div><kbd>+</kbd><kbd>−</kbd></div><div data-i18n="help.kb.zoom">Zoom in / out</div>
-      <div><kbd>0</kbd> <span data-i18n="help.or">ou</span> <kbd>Esc</kbd></div><div data-i18n="help.kb.reset">Resetar zoom</div>
+      <div><kbd>0</kbd></div><div data-i18n="help.kb.reset">Resetar zoom</div>
+      <div><kbd>Esc</kbd></div><div data-i18n="help.kb.esc">Fecha menu/modal aberto · sai da seleção · expande painéis · reseta zoom</div>
       <div><kbd>F</kbd></div><div data-i18n="help.kb.fs">Tela cheia</div>
       <div><kbd>I</kbd></div><div data-i18n="help.kb.info">Painel de informações</div>
       <div><kbd>S</kbd></div><div data-i18n="help.kb.mode">Trocar de modo</div>
@@ -1895,6 +1896,7 @@ const I18N = {
     'help.kb.reset': 'Resetar zoom', 'help.kb.fs': 'Tela cheia',
     'help.kb.info': 'Painel de informações', 'help.kb.mode': 'Trocar de modo',
     'help.kb.help': 'Esta ajuda',
+    'help.kb.esc': 'Fecha menu/modal aberto · sai da seleção · expande painéis · reseta zoom',
     'help.kb.selAll': 'Ctrl+A', 'help.kb.selAllDesc': 'Selecionar todos os pares',
     'help.kb.del': 'Delete', 'help.kb.delDesc': 'Remover pares selecionados',
     'help.m.wheel': 'Roda', 'help.m.wheelDesc': 'Zoom (ancorado ao cursor)',
@@ -1989,6 +1991,7 @@ const I18N = {
     'help.kb.reset': 'Reset zoom', 'help.kb.fs': 'Fullscreen',
     'help.kb.info': 'Info panel', 'help.kb.mode': 'Switch mode',
     'help.kb.help': 'This help',
+    'help.kb.esc': 'Close open menu/modal · clear selection · expand panels · reset zoom',
     'help.kb.selAll': 'Ctrl+A', 'help.kb.selAllDesc': 'Select all pairs',
     'help.kb.del': 'Delete', 'help.kb.delDesc': 'Remove selected pairs',
     'help.m.wheel': 'Wheel', 'help.m.wheelDesc': 'Zoom (anchored to cursor)',
@@ -2083,6 +2086,7 @@ const I18N = {
     'help.kb.reset': 'Restablecer zoom', 'help.kb.fs': 'Pantalla completa',
     'help.kb.info': 'Panel de información', 'help.kb.mode': 'Cambiar modo',
     'help.kb.help': 'Esta ayuda',
+    'help.kb.esc': 'Cierra menú/modal abierto · limpia selección · expande paneles · restablece zoom',
     'help.kb.selAll': 'Ctrl+A', 'help.kb.selAllDesc': 'Seleccionar todos los pares',
     'help.kb.del': 'Supr', 'help.kb.delDesc': 'Eliminar pares seleccionados',
     'help.m.wheel': 'Rueda', 'help.m.wheelDesc': 'Zoom (anclado al cursor)',
@@ -2175,6 +2179,7 @@ const I18N = {
     'help.kb.reset': 'Réinitialiser le zoom', 'help.kb.fs': 'Plein écran',
     'help.kb.info': "Panneau d'informations", 'help.kb.mode': 'Changer de mode',
     'help.kb.help': 'Cette aide',
+    'help.kb.esc': 'Ferme menu/modal ouvert · efface la sélection · déplie les panneaux · réinitialise le zoom',
     'help.kb.selAll': 'Ctrl+A', 'help.kb.selAllDesc': 'Sélectionner toutes les paires',
     'help.kb.del': 'Suppr', 'help.kb.delDesc': 'Supprimer les paires sélectionnées',
     'help.m.wheel': 'Molette', 'help.m.wheelDesc': 'Zoom (ancré au curseur)',
@@ -2267,6 +2272,7 @@ const I18N = {
     'help.kb.reset': 'Zoom zurücksetzen', 'help.kb.fs': 'Vollbild',
     'help.kb.info': 'Info-Panel', 'help.kb.mode': 'Modus wechseln',
     'help.kb.help': 'Diese Hilfe',
+    'help.kb.esc': 'Schließt offenes Menü/Modal · löscht Auswahl · klappt Panels aus · setzt Zoom zurück',
     'help.kb.selAll': 'Strg+A', 'help.kb.selAllDesc': 'Alle Paare auswählen',
     'help.kb.del': 'Entf', 'help.kb.delDesc': 'Ausgewählte Paare entfernen',
     'help.m.wheel': 'Rad', 'help.m.wheelDesc': 'Zoom (am Cursor verankert)',
@@ -2359,6 +2365,7 @@ const I18N = {
     'help.kb.reset': 'ズームリセット', 'help.kb.fs': 'フルスクリーン',
     'help.kb.info': '情報パネル', 'help.kb.mode': 'モード切替',
     'help.kb.help': 'このヘルプ',
+    'help.kb.esc': 'メニュー/モーダル閉じる · 選択クリア · パネル展開 · ズームリセット',
     'help.kb.selAll': 'Ctrl+A', 'help.kb.selAllDesc': '全ペアを選択',
     'help.kb.del': 'Delete', 'help.kb.delDesc': '選択したペアを削除',
     'help.m.wheel': 'ホイール', 'help.m.wheelDesc': 'ズーム (カーソル基準)',
@@ -2451,6 +2458,7 @@ const I18N = {
     'help.kb.reset': '重置缩放', 'help.kb.fs': '全屏',
     'help.kb.info': '信息面板', 'help.kb.mode': '切换模式',
     'help.kb.help': '此帮助',
+    'help.kb.esc': '关闭打开的菜单/弹窗 · 清除选择 · 展开面板 · 重置缩放',
     'help.kb.selAll': 'Ctrl+A', 'help.kb.selAllDesc': '选择所有对',
     'help.kb.del': 'Delete', 'help.kb.delDesc': '删除选中的对',
     'help.m.wheel': '滚轮', 'help.m.wheelDesc': '缩放(锚定到光标)',
@@ -2543,6 +2551,7 @@ const I18N = {
     'help.kb.reset': 'Reimposta zoom', 'help.kb.fs': 'Schermo intero',
     'help.kb.info': 'Pannello info', 'help.kb.mode': 'Cambia modalità',
     'help.kb.help': 'Questo aiuto',
+    'help.kb.esc': 'Chiude menu/modale aperto · cancella selezione · espande pannelli · reimposta zoom',
     'help.kb.selAll': 'Ctrl+A', 'help.kb.selAllDesc': 'Seleziona tutte le coppie',
     'help.kb.del': 'Canc', 'help.kb.delDesc': 'Rimuovi coppie selezionate',
     'help.m.wheel': 'Rotella', 'help.m.wheelDesc': 'Zoom (ancorato al cursore)',
@@ -2611,7 +2620,19 @@ const I18N = {
 // visita começa "do zero" (vide bloco PERSISTÊNCIA mais abaixo).
 // Suporta 8 idiomas: EN-US (default), PT-BR, ES-ES, FR-FR, DE-DE, JA-JP,
 // ZH-CN (Chinês simplificado), IT-IT (Italiano).
+//
+// EXCEÇÃO: HTMLs exportados via "Galeria offline" / "Comparador desta foto"
+// preservam o idioma do export. O builder injeta window.EMBEDDED_LANG junto
+// com EMBEDDED_DATA antes do script principal, e a inicialização abaixo
+// honra esse valor se presente. Assim, se o usuário exporta enquanto está
+// vendo em PT, o HTML exportado também abre em PT.
 let currentLang = 'en-US';
+// Honra EMBEDDED_LANG se válido (idioma preservado do export).
+// I18N só é declarado ABAIXO, então a validação completa acontece
+// depois — aqui só checamos string não-vazia.
+if (typeof window.EMBEDDED_LANG === 'string' && window.EMBEDDED_LANG){
+  currentLang = window.EMBEDDED_LANG;
+}
 
 /** Label curta (2 letras) p/ exibir no botão de idioma. */
 const LANG_LABEL = { 'en-US':'EN', 'pt-BR':'PT', 'es-ES':'ES', 'fr-FR':'FR', 'de-DE':'DE', 'ja-JP':'JA', 'zh-CN':'ZH', 'it-IT':'IT' };
@@ -2736,6 +2757,10 @@ if (_btnLang && _langMenu){
     if (e.key === 'Escape' && !_langMenu.hidden) closeLangMenu();
   });
 }
+
+// Sanity check: se EMBEDDED_LANG veio com código não suportado,
+// fallback pra en-US (evita app quebrar com I18N[undefined]).
+if (!I18N[currentLang]) currentLang = 'en-US';
 
 // Aplica traduções imediatamente (antes do DOM ser visto pelo usuário).
 applyI18n();
@@ -4610,13 +4635,23 @@ function startApp(DATA){
       } break;
       case '0': case 'Escape': {
         // Esc tem precedência em camadas: fecha o que estiver aberto
-        // primeiro (menus > modal > seleção > zoom reset).
+        // primeiro (menus > modal > seleção > sai do modo colapsado >
+        // zoom reset). A tecla '0' segue o mesmo encadeamento por
+        // consistência; ambas convergem pro reset() no fim.
         // (sortMenu foi removido em favor do sort cycler — não há mais
         // dropdown pra fechar.)
         const exMenu = $('exportMenu');
         if (exMenu && !exMenu.hidden){ exMenu.hidden = true; break; }
         if (!helpModal.hidden){ helpModal.hidden = true; break; }
         if (selection.size > 0){ clearSelection(); break; }
+        // Esc sai do modo "all-collapsed" (atalho equivalente ao botão
+        // collapse/expand no canto da stage). Só Escape — '0' continua
+        // direto pro reset porque seu papel histórico é "resetar zoom".
+        if (e.key === 'Escape' && allCollapsed){
+          allCollapsed = false;
+          applyAllCollapsed();
+          break;
+        }
         reset();
       } break;
       case 'Delete': case 'Backspace': {
@@ -4831,15 +4866,22 @@ function startApp(DATA){
     const exMenu = doc.querySelector('#exportMenu');
     if (exMenu) exMenu.remove();
 
-    // ---- INJEÇÃO DE DADOS ----
-    // Insere um <script> com EMBEDDED_DATA antes do <script> principal.
-    // JSON.stringify cuida de escapes; só precisamos quebrar uma
-    // sequência "</scr"+"ipt>" literal dentro de strings (caso algum
-    // nome de arquivo contenha isso) — senão o parser HTML do
+    // ---- INJEÇÃO DE DADOS + IDIOMA ----
+    // Insere um <script> com EMBEDDED_DATA + EMBEDDED_LANG antes do
+    // <script> principal. JSON.stringify cuida de escapes; só precisamos
+    // quebrar uma sequência "</scr"+"ipt>" literal dentro de strings (caso
+    // algum nome de arquivo contenha isso) — senão o parser HTML do
     // browser fecharia o <script> no meio.
+    //
+    // EMBEDDED_LANG preserva o idioma da sessão de export. Sem isso, o
+    // arquivo gerado abriria sempre em en-US (default fixo do app),
+    // ignorando o idioma que o usuário estava vendo na hora do export.
     const json = JSON.stringify(items).replace(/<\/script>/gi, '<\\/script>');
+    const langJson = JSON.stringify(currentLang);
     const dataScript = doc.createElement('script');
-    dataScript.textContent = 'window.EMBEDDED_DATA = ' + json + ';';
+    dataScript.textContent =
+      'window.EMBEDDED_DATA = ' + json + ';\n' +
+      'window.EMBEDDED_LANG = ' + langJson + ';';
     const mainScript = doc.querySelector('script');
     if (mainScript) mainScript.parentNode.insertBefore(dataScript, mainScript);
 
@@ -4913,9 +4955,14 @@ function startApp(DATA){
       fill.style.width = '100%';
       text.textContent = t('load.generating');
 
+      // Title localizado: usa as chaves i18n já existentes do menu de
+      // export, então funciona pros 8 idiomas sem if/else hardcoded.
+      // Nota: o título "real" da aba é sobrescrito por applyI18n() no
+      // boot do HTML exportado (vira "Before / After" etc, casando com
+      // o h1 da topbar). Este aqui é só o fallback durante o load HTML.
       const title = kind === 'one'
         ? `image-pair-viewer · ${out[0].id}`
-        : 'image-pair-viewer (' + (currentLang === 'pt-BR' ? 'galeria offline' : 'offline gallery') + ')';
+        : `image-pair-viewer · ${t('export.all.title')}`;
       const filename = kind === 'one'
         ? `image-pair-${out[0].id}.html`
         : `image-pair-gallery-${new Date().toISOString().slice(0,10)}.html`;
