@@ -4783,16 +4783,20 @@ function startApp(DATA){
   });
 
   /* ============================================================
-     RESIZE HANDLES — sidebar (width) e strip (height)
+     RESIZE HANDLES — sidebar (width) e strip (width desktop / height mobile)
      ============================================================ */
 
-  // Restaura tamanhos salvos.
+  // Restaura tamanho da SIDEBAR (sempre width). Sidebar nunca trocou
+  // de eixo entre versões.
   try {
     const sw = localStorage.getItem('sidebarW');
     if (sw) sidebar.style.flexBasis = sw;
-    const sh = localStorage.getItem('stripH');
-    if (sh) document.querySelector('.thumbstrip-wrap').style.height = sh;
   } catch(_){}
+  // Strip: restauração + scale acontece logo após bindResize ser
+  // configurado (mais abaixo), porque o eixo depende da orientação
+  // atual (desktop vertical x mobile horizontal). NÃO aplicar aqui
+  // o stripH legado como style.height, senão o aside ficaria fixo
+  // em altura pequena no layout vertical novo.
 
   /**
    * Liga drag-to-resize numa faixa fina (.resizer). Também suporta
@@ -4875,24 +4879,39 @@ function startApp(DATA){
   // Strip: layout é vertical no DESKTOP (handle na borda direita, drag
   // horizontal = largura) e horizontal no MOBILE (handle na borda
   // superior, drag vertical = altura). O bindResize decide o eixo
-  // dinamicamente via media query. Migramos chave antiga 'stripH' →
-  // 'stripW' pra desktop. invert=false: arrastar pra direita aumenta
-  // a largura (o handle fica na borda direita do strip).
+  // dinamicamente via media query. invert=false em desktop (drag pra
+  // direita aumenta a largura, handle na borda direita); invert=true
+  // em mobile (drag pra cima aumenta altura, handle na borda superior).
+  // minV é maior em desktop (140) pra evitar que o usuário encolha o
+  // strip a ponto de truncar as labels dos botões (Abrir/Ordenar/Remover).
   const isMobileLayout = () => !window.matchMedia('(min-width: 901px)').matches;
-  bindResize($('stripResizer'), document.querySelector('.thumbstrip-wrap'),
+  const stripEl = document.querySelector('.thumbstrip-wrap');
+  const minStripV = isMobileLayout() ? 80 : 140;
+  bindResize($('stripResizer'), stripEl,
              isMobileLayout() ? 'y' : 'x',
-             80, 380,
+             minStripV, 380,
              isMobileLayout() ? 'stripH' : 'stripW',
              isMobileLayout(),     // invert apenas em mobile (drag up = bigger)
              applyStripScale);
 
-  // Aplica tamanho salvo (preferindo a chave da orientação atual).
+  // Aplica tamanho salvo da orientação ATUAL. NÃO faz fallback cross-axis
+  // (stripH → stripW gera valores absurdos porque a antiga altura
+  // horizontal pequena vira largura vertical pequena, ou pior, a antiga
+  // altura grande vira largura excessiva). Cada orientação tem sua
+  // própria chave; sem valor salvo (ou se o valor for menor que minV),
+  // o CSS default toma conta — garante labels não truncadas no boot.
   try {
     const key = isMobileLayout() ? 'stripH' : 'stripW';
-    const sv = localStorage.getItem(key) || localStorage.getItem('stripH');
+    const sv = localStorage.getItem(key);
     if (sv){
       const v = parseFloat(sv);
-      if (!isNaN(v)) applyStripScale(v);
+      if (!isNaN(v) && v >= minStripV){
+        // Aplica como dimensão inline (flexBasis no desktop, height em mobile)
+        // E propaga em --thumb-h pra escalar tools/fontes proporcionalmente.
+        if (isMobileLayout()) stripEl.style.height = sv;
+        else stripEl.style.flexBasis = sv;
+        applyStripScale(v);
+      }
     }
   } catch(_){}
 
