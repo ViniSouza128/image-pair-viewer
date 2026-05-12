@@ -8,6 +8,12 @@
 *.gif
 *.bmp
 
+# Exceção: pasta samples/ traz os exemplos embutidos do GitHub Pages
+# (pares before/after de demonstração). São CC BY-SA / domínio público —
+# créditos completos em CREDITS.md.
+!samples/
+!samples/**
+
 # Arquivos de sistema / editor
 .DS_Store
 Thumbs.db
@@ -16,8 +22,10 @@ desktop.ini
 .vscode/
 .idea/
 
-# Scripts / artefatos temporários (mas o builder oficial é mantido)
+# Scripts / artefatos temporários (mas os builders oficiais são mantidos)
 _*.py
 !_build.py
+!_samples_build.py
 _*.html
 *.tmp.js
+

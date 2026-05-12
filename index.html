@@ -238,6 +238,24 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
   text-decoration-color:var(--fg-4);text-underline-offset:2px}
 .upload-secondary:hover{color:var(--fg-2)}
 
+/* Botão "experimentar com exemplos" — estilo ghost (outline) que convida
+   sem competir com o CTA primário (gradient âmbar). Cinza claro com
+   borda sutil; no hover ganha cor de accent.
+   Usado pra carregar pares de demo embutidos (samples/), permitindo
+   que visitantes do GitHub Pages testem o app sem subir fotos próprias. */
+.upload-btn-ghost{display:inline-flex;align-items:center;gap:8px;padding:10px 18px;
+  margin-top:14px;background:transparent;color:var(--fg-2);font-weight:500;
+  border:1px solid var(--line);border-radius:999px;cursor:pointer;
+  font-size:13px;font-family:inherit;
+  transition:border-color var(--t-fast),color var(--t-fast),background var(--t-fast)}
+.upload-btn-ghost:hover:not(:disabled){border-color:var(--accent);color:var(--fg);
+  background:rgba(255,174,60,.04)}
+.upload-btn-ghost:disabled{opacity:.55;cursor:default}
+.upload-btn-ghost svg{width:14px;height:14px;opacity:.85}
+/* Spinner inline pra estado "carregando exemplos" — gira o ícone via animação. */
+.upload-btn-ghost.is-loading svg{animation:spin 1s linear infinite;opacity:1}
+@keyframes spin{to{transform:rotate(360deg)}}
+
 /* Linha de "privacidade" com ícone de cadeado — texto pequeno e cinza
    pra ser presente sem dominar visualmente. margin-top maior agora
    que o bloco de regras foi removido. */
@@ -1278,6 +1296,20 @@ kbd{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:1
       <input type="file" id="fileInput" multiple accept="image/*" style="display:none">
     </label>
 
+    <!-- BOTÃO SECUNDÁRIO: carregar pares de demonstração embutidos.
+         Faz fetch() em samples/manifest.json + samples/*.jpg, converte
+         cada blob em File e dispara o pipeline normal de handleFiles().
+         Permite que um visitante teste o app sem subir fotos próprias —
+         ideal pra demo no GitHub Pages. As 4 imagens são CC BY-SA / domínio
+         público; créditos em CREDITS.md. -->
+    <div>
+      <button type="button" class="upload-btn-ghost" id="samplesBtn">
+        <!-- Ícone de "sparkles"/estrela: convida a explorar. -->
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3z"/></svg>
+        <span data-i18n="upload.samples">Experimentar com exemplos</span>
+      </button>
+    </div>
+
     <!-- Caixa de erro — só aparece quando JS chama showError().
          O atributo `hidden` esconde via CSS [hidden]{display:none}. -->
     <div class="upload-error" id="uploadError" hidden></div>
@@ -1866,6 +1898,8 @@ const I18N = {
   'pt-BR': {
     'upload.instruction': 'Envie o conjunto de fotos — originais e versões editadas, todas juntas. Os pares são identificados automaticamente pelo nome dos arquivos.',
     'upload.button': 'Selecionar fotos',
+    'upload.samples': 'Experimentar com exemplos',
+    'upload.samplesLoading': 'Carregando exemplos…',
     'upload.privacy': 'Processado 100% no seu navegador. Nada é enviado a nenhum servidor — tudo é descartado quando você fechar a aba.',
     'ui.cancel': 'Cancelar', 'ui.confirm': 'Confirmar', 'ui.close': 'Fechar',
     'ui.export': 'Exportar HTML', 'ui.info': 'Informações (I)',
@@ -1914,6 +1948,7 @@ const I18N = {
     'err.noPairs': 'Nenhum par detectado. Verifique se os nomes dos arquivos seguem padrões de câmera (IMG_NNNN, DSC_NNNNN, etc.) e que originais + versões editadas estão presentes.',
     'err.loadFail': 'Não consegui carregar nenhuma das imagens.',
     'err.exportFail': 'Falha ao exportar',
+    'err.samplesFailed': 'Não consegui carregar os exemplos. Verifique sua conexão ou abra a página via http(s) em vez de file://',
     'load.reading': 'Lendo {n} pares…',
     'load.processing': 'Processando {i}/{n}: {id}',
     'load.preparing': 'Preparando exportação…',
@@ -1961,6 +1996,8 @@ const I18N = {
   'en-US': {
     'upload.instruction': 'Upload your set of photos — originals and edited versions, all together. Pairs are identified automatically from filenames.',
     'upload.button': 'Select photos',
+    'upload.samples': 'Try with sample images',
+    'upload.samplesLoading': 'Loading samples…',
     'upload.privacy': 'Processed 100% in your browser. Nothing is sent to any server — everything is discarded when you close the tab.',
     'ui.cancel': 'Cancel', 'ui.confirm': 'Confirm', 'ui.close': 'Close',
     'ui.export': 'Export HTML', 'ui.info': 'Info (I)',
@@ -2007,6 +2044,7 @@ const I18N = {
     'help.t.tap': 'Single tap', 'help.t.tapDesc': 'Show/hide UI',
     'err.fewFiles': 'Select at least 2 images.',
     'err.noPairs': 'No pair detected. Check that filenames follow camera patterns (IMG_NNNN, DSC_NNNNN, etc.) and contain originals + edited versions.',
+    'err.samplesFailed': 'Could not load samples. Check your connection, or open the page via http(s) instead of file://',
     'err.loadFail': 'Could not load any of the images.',
     'err.exportFail': 'Export failed',
     'load.reading': 'Reading {n} pairs…',
@@ -2056,6 +2094,8 @@ const I18N = {
   'es-ES': {
     'upload.instruction': 'Sube tu conjunto de fotos — originales y versiones editadas, todas juntas. Los pares se identifican automáticamente por el nombre de los archivos.',
     'upload.button': 'Seleccionar fotos',
+    'upload.samples': 'Probar con ejemplos',
+    'upload.samplesLoading': 'Cargando ejemplos…',
     'upload.privacy': 'Procesado 100% en tu navegador. Nada se envía a ningún servidor — todo se descarta al cerrar la pestaña.',
     'ui.cancel': 'Cancelar', 'ui.confirm': 'Confirmar', 'ui.close': 'Cerrar',
     'ui.export': 'Exportar HTML', 'ui.info': 'Información (I)',
@@ -2102,6 +2142,7 @@ const I18N = {
     'help.t.tap': 'Toque simple', 'help.t.tapDesc': 'Mostrar/ocultar interfaz',
     'err.fewFiles': 'Selecciona al menos 2 imágenes.',
     'err.noPairs': 'No se detectó ningún par. Verifica que los nombres de archivo sigan patrones de cámara (IMG_NNNN, DSC_NNNNN, etc.) y contengan originales + versiones editadas.',
+    'err.samplesFailed': 'No se pudieron cargar los ejemplos. Verifica tu conexión o abre la página vía http(s) en vez de file://',
     'err.loadFail': 'No se pudo cargar ninguna de las imágenes.',
     'err.exportFail': 'Falló la exportación',
     'load.reading': 'Leyendo {n} pares…',
@@ -2149,6 +2190,8 @@ const I18N = {
   'fr-FR': {
     'upload.instruction': "Téléversez votre lot de photos — originaux et versions éditées, tous ensemble. Les paires sont identifiées automatiquement par les noms des fichiers.",
     'upload.button': 'Choisir des photos',
+    'upload.samples': "Essayer avec des exemples",
+    'upload.samplesLoading': 'Chargement des exemples…',
     'upload.privacy': "Traité 100% dans votre navigateur. Rien n'est envoyé à un serveur — tout est effacé à la fermeture de l'onglet.",
     'ui.cancel': 'Annuler', 'ui.confirm': 'Confirmer', 'ui.close': 'Fermer',
     'ui.export': 'Exporter HTML', 'ui.info': 'Informations (I)',
@@ -2195,6 +2238,7 @@ const I18N = {
     'help.t.tap': 'Tap simple', 'help.t.tapDesc': "Afficher/masquer l'interface",
     'err.fewFiles': 'Sélectionnez au moins 2 images.',
     'err.noPairs': "Aucune paire détectée. Vérifiez que les noms de fichiers suivent les conventions d'appareil (IMG_NNNN, DSC_NNNNN, etc.) et contiennent originaux + versions éditées.",
+    'err.samplesFailed': "Impossible de charger les exemples. Vérifiez votre connexion ou ouvrez la page via http(s) au lieu de file://",
     'err.loadFail': "Impossible de charger les images.",
     'err.exportFail': "Échec de l'exportation",
     'load.reading': 'Lecture de {n} paires…',
@@ -2242,6 +2286,8 @@ const I18N = {
   'de-DE': {
     'upload.instruction': 'Lade dein Foto-Set hoch — Originale und bearbeitete Versionen, alle zusammen. Paare werden automatisch anhand der Dateinamen erkannt.',
     'upload.button': 'Fotos auswählen',
+    'upload.samples': 'Mit Beispielen ausprobieren',
+    'upload.samplesLoading': 'Beispiele werden geladen…',
     'upload.privacy': 'Zu 100% in deinem Browser verarbeitet. Nichts wird an einen Server gesendet — alles wird verworfen, wenn du den Tab schließt.',
     'ui.cancel': 'Abbrechen', 'ui.confirm': 'Bestätigen', 'ui.close': 'Schließen',
     'ui.export': 'HTML exportieren', 'ui.info': 'Info (I)',
@@ -2288,6 +2334,7 @@ const I18N = {
     'help.t.tap': 'Einfacher Tipp', 'help.t.tapDesc': 'Oberfläche ein-/ausblenden',
     'err.fewFiles': 'Wähle mindestens 2 Bilder aus.',
     'err.noPairs': 'Kein Paar erkannt. Prüfe ob die Dateinamen Kamera-Mustern folgen (IMG_NNNN, DSC_NNNNN, etc.) und Originale + bearbeitete Versionen enthalten.',
+    'err.samplesFailed': 'Beispiele konnten nicht geladen werden. Prüfe deine Verbindung oder öffne die Seite via http(s) statt file://',
     'err.loadFail': 'Konnte keines der Bilder laden.',
     'err.exportFail': 'Export fehlgeschlagen',
     'load.reading': 'Lese {n} Paare…',
@@ -2335,6 +2382,8 @@ const I18N = {
   'ja-JP': {
     'upload.instruction': '写真のセットをアップロード — オリジナルと編集版、すべて一緒に。ペアはファイル名から自動的に識別されます。',
     'upload.button': '写真を選択',
+    'upload.samples': 'サンプルで試す',
+    'upload.samplesLoading': 'サンプルを読み込み中…',
     'upload.privacy': 'ブラウザ内で100%処理されます。サーバーには何も送信されません — タブを閉じるとすべて破棄されます。',
     'ui.cancel': 'キャンセル', 'ui.confirm': '確認', 'ui.close': '閉じる',
     'ui.export': 'HTMLエクスポート', 'ui.info': '情報 (I)',
@@ -2381,6 +2430,7 @@ const I18N = {
     'help.t.tap': 'シングルタップ', 'help.t.tapDesc': 'UI表示/非表示',
     'err.fewFiles': '少なくとも2枚の画像を選択してください。',
     'err.noPairs': 'ペアが検出されません。ファイル名がカメラのパターン (IMG_NNNN, DSC_NNNNN, など) に従い、オリジナルと編集版が含まれているか確認してください。',
+    'err.samplesFailed': 'サンプルを読み込めませんでした。接続を確認するか、file:// ではなく http(s) でページを開いてください。',
     'err.loadFail': '画像を読み込めませんでした。',
     'err.exportFail': 'エクスポート失敗',
     'load.reading': '{n}ペアを読み込み中…',
@@ -2428,6 +2478,8 @@ const I18N = {
   'zh-CN': {
     'upload.instruction': '上传你的照片集 — 原图和编辑版,全部一起。配对会根据文件名自动识别。',
     'upload.button': '选择照片',
+    'upload.samples': '试用示例图片',
+    'upload.samplesLoading': '正在加载示例…',
     'upload.privacy': '100% 在浏览器内处理。不会发送到任何服务器 — 关闭标签页时全部丢弃。',
     'ui.cancel': '取消', 'ui.confirm': '确认', 'ui.close': '关闭',
     'ui.export': '导出 HTML', 'ui.info': '信息 (I)',
@@ -2474,6 +2526,7 @@ const I18N = {
     'help.t.tap': '单击', 'help.t.tapDesc': '显示/隐藏界面',
     'err.fewFiles': '请至少选择 2 张图片。',
     'err.noPairs': '未检测到对。请检查文件名是否符合相机格式(IMG_NNNN、DSC_NNNNN 等)并包含原图和编辑版。',
+    'err.samplesFailed': '无法加载示例。请检查网络连接,或通过 http(s) 而非 file:// 打开页面。',
     'err.loadFail': '无法加载任何图片。',
     'err.exportFail': '导出失败',
     'load.reading': '正在读取 {n} 对…',
@@ -2521,6 +2574,8 @@ const I18N = {
   'it-IT': {
     'upload.instruction': "Carica il tuo set di foto — originali e versioni modificate, tutte insieme. Le coppie sono identificate automaticamente dai nomi dei file.",
     'upload.button': 'Seleziona foto',
+    'upload.samples': 'Prova con esempi',
+    'upload.samplesLoading': 'Caricamento esempi…',
     'upload.privacy': 'Elaborato al 100% nel tuo browser. Nulla viene inviato a un server — tutto viene eliminato alla chiusura della scheda.',
     'ui.cancel': 'Annulla', 'ui.confirm': 'Conferma', 'ui.close': 'Chiudi',
     'ui.export': 'Esporta HTML', 'ui.info': 'Informazioni (I)',
@@ -2567,6 +2622,7 @@ const I18N = {
     'help.t.tap': 'Tap singolo', 'help.t.tapDesc': "Mostra/nascondi interfaccia",
     'err.fewFiles': 'Seleziona almeno 2 immagini.',
     'err.noPairs': "Nessuna coppia rilevata. Verifica che i nomi dei file seguano i pattern delle fotocamere (IMG_NNNN, DSC_NNNNN, ecc.) e contengano originali + versioni modificate.",
+    'err.samplesFailed': "Impossibile caricare gli esempi. Verifica la connessione o apri la pagina tramite http(s) invece di file://",
     'err.loadFail': "Impossibile caricare le immagini.",
     'err.exportFail': "Esportazione fallita",
     'load.reading': 'Lettura di {n} coppie…',
@@ -3383,6 +3439,71 @@ async function handleFiles(fileList, opts){
 }
 
 /* ---------------------------------------------------------------------------
+   loadSampleImages() — baixa os pares de demonstração e dispara o pipeline.
+
+   Fetch dinâmico de samples/manifest.json (gerado pelo _samples_build.py)
+   + cada JPG referenciado. Cada blob vira um File() com nome que
+   respeita a regra de pareamento (mesmo run de 4+ dígitos, nome mais
+   curto = before, mais longo = after).
+
+   Em caso de erro (offline, file:// sem CORS, samples/ não publicada),
+   mostra mensagem no #uploadError e devolve o botão pro estado normal.
+
+   Nota sobre file:// — abrir index.html direto do disco em alguns
+   browsers (Chrome desktop) bloqueia fetch() de arquivos locais. Em
+   GitHub Pages, http(s):// resolve normalmente. Em dev local, use
+   `python -m http.server` ou Live Server pra evitar o bloqueio.
+   --------------------------------------------------------------------------- */
+async function loadSampleImages(btn){
+  clearError();
+  // Estado "carregando": desabilita botão + troca texto + gira ícone.
+  const label = btn.querySelector('[data-i18n]');
+  const originalText = label ? label.textContent : '';
+  btn.disabled = true;
+  btn.classList.add('is-loading');
+  if (label) label.textContent = t('upload.samplesLoading');
+
+  try {
+    const res = await fetch('samples/manifest.json', { cache: 'no-cache' });
+    if (!res.ok) throw new Error('manifest HTTP ' + res.status);
+    const manifest = await res.json();
+    if (!Array.isArray(manifest) || !manifest.length){
+      throw new Error('manifest empty');
+    }
+
+    // Baixa todos os arquivos do manifesto em paralelo. Cada item produz
+    // 2 arquivos (before + after). Promise.all preserva ordem.
+    const urls = [];
+    for (const item of manifest){
+      urls.push('samples/' + item.before);
+      urls.push('samples/' + item.after);
+    }
+    const blobs = await Promise.all(urls.map(async (u) => {
+      const r = await fetch(u, { cache: 'force-cache' });
+      if (!r.ok) throw new Error(u + ' HTTP ' + r.status);
+      return { url: u, blob: await r.blob() };
+    }));
+
+    // Converte cada blob em File() com nome do path (mantém o run de
+    // 4+ dígitos pra pairFiles funcionar). MIME forçado pra image/jpeg
+    // já que tudo no manifest é JPG.
+    const files = blobs.map(({ url, blob }) => {
+      const name = url.substring(url.lastIndexOf('/') + 1);
+      return new File([blob], name, { type: blob.type || 'image/jpeg' });
+    });
+
+    // Pipeline normal: pairFiles + placeholders + startApp.
+    await handleFiles(files);
+  } catch (err) {
+    console.error('loadSampleImages failed:', err);
+    showError(t('err.samplesFailed') + ' (' + err.message + ')');
+    btn.disabled = false;
+    btn.classList.remove('is-loading');
+    if (label) label.textContent = originalText;
+  }
+}
+
+/* ---------------------------------------------------------------------------
    bindUploadUI() — registra os listeners de input/drag-drop.
 
    Encapsulado em função pra que possa ser pulado quando a página é
@@ -3393,6 +3514,13 @@ async function handleFiles(fileList, opts){
 function bindUploadUI(){
   // Input principal (tela inicial) — substitui DATA.
   fileInput.addEventListener('change', e => handleFiles(e.target.files));
+
+  // Botão "Experimentar com exemplos" — busca pares embutidos via fetch
+  // e roda o mesmo pipeline do upload manual.
+  const samplesBtn = document.getElementById('samplesBtn');
+  if (samplesBtn){
+    samplesBtn.addEventListener('click', () => loadSampleImages(samplesBtn));
+  }
 
   // Input "+" (modo append) — adiciona à sessão existente. Acionado
   // pelo botão da topbar (#btnAddMore). O input fica permanentemente

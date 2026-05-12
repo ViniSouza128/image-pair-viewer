@@ -1,0 +1,38 @@
+[
+  {
+    "id": "0001",
+    "slug": "foggy-morning",
+    "before": "sample_0001_foggy-morning.jpg",
+    "after": "sample_0001_foggy-morning_edited.jpg",
+    "edit": "dehaze",
+    "credit": "A foggy winter morning by Soumyajit Nandy, CC BY-SA 4.0",
+    "wiki": "https://commons.wikimedia.org/wiki/File:A_foggy_winter_morning.jpg"
+  },
+  {
+    "id": "0002",
+    "slug": "prismatic-spring",
+    "before": "sample_0002_prismatic-spring.jpg",
+    "after": "sample_0002_prismatic-spring_edited.jpg",
+    "edit": "vibrant",
+    "credit": "Aerial image of Grand Prismatic Spring by Jim Peaco / NPS, Public Domain (work of US federal government)",
+    "wiki": "https://commons.wikimedia.org/wiki/File:Aerial_image_of_Grand_Prismatic_Spring_(view_from_the_south).jpg"
+  },
+  {
+    "id": "0003",
+    "slug": "surfer-wave",
+    "before": "sample_0003_surfer-wave.jpg",
+    "after": "sample_0003_surfer-wave_edited.jpg",
+    "edit": "cinematic",
+    "credit": "Henry Espinoza Panta smashing a wave at Lobitos by Marco Garro, CC BY-SA 4.0",
+    "wiki": "https://commons.wikimedia.org/wiki/File:Henry_Espinoza_Panta_smashing_a_wave_at_Lobitos.jpg"
+  },
+  {
+    "id": "0004",
+    "slug": "f35-airshow",
+    "before": "sample_0004_f35-airshow.jpg",
+    "after": "sample_0004_f35-airshow_edited.jpg",
+    "edit": "punchy",
+    "credit": "F-35 Heritage Flight Team by Senior Airman Tristen W. Webb / U.S. Air Force, Public Domain",
+    "wiki": "https://commons.wikimedia.org/wiki/File:F-35_Heritage_Flight_Team_performs_in_Bell_Fort_Worth_Alliance_AirShow.jpg"
+  }
+]

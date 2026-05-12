@@ -20,6 +20,33 @@ URL pública (GitHub Pages): https://vinisouza128.github.io/image-pair-viewer/
 
 ---
 
+## Experimentar com exemplos (sem subir fotos)
+
+A tela de upload tem um botão **"Experimentar com exemplos"** abaixo do
+CTA principal. Um clique baixa 4 pares de demonstração embutidos
+(`samples/`) via `fetch()` e dispara o mesmo pipeline do upload manual —
+nenhum dado sai do navegador.
+
+Os 4 pares cobrem cenários típicos de edição fotográfica:
+
+| Par                       | Tema                            | Tipo de edição aplicada                |
+|---------------------------|---------------------------------|----------------------------------------|
+| `sample_0001_foggy-*`     | Manhã enevoada (palmeiras + sol)| Dehaze (corte de neblina + sat/contraste) |
+| `sample_0002_prismatic-*` | Grand Prismatic Spring (aéreo)  | Color grade vibrante (saturação +65%)  |
+| `sample_0003_surfer-*`    | Surfista cortando onda          | Cinematic teal/orange + vignette       |
+| `sample_0004_f35-*`       | F-35 em manobra (airshow)       | Punchy aviation (sat/contraste/sharpen)|
+
+As imagens originais são **CC BY-SA 4.0** (Wikimedia Commons) ou
+**domínio público** (US federal government works). Créditos completos em
+[CREDITS.md](CREDITS.md). As versões "depois" são derivadas geradas
+localmente por [`_samples_build.py`](_samples_build.py) (que aplica color
+grade, contraste, vignette etc. via Pillow).
+
+Total: ~3.6 MB para 8 JPEGs em 2000 px na maior dimensão. Só baixa quando
+o botão é clicado — não pesa no load inicial da página.
+
+---
+
 ## Pareamento
 
 O algoritmo de pareamento foi pensado pra cobrir convenções de diversas
