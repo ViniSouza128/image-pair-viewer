@@ -97,6 +97,44 @@
 <link rel="apple-touch-icon" href="icons/icon-180.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
 <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
+
+<!-- ===========================================================
+     Open Graph + Twitter Card
+     -----------------------------------------------------------
+     Controla o preview do link quando colado no WhatsApp, Twitter,
+     LinkedIn, Facebook, Slack, Discord, Telegram, iMessage etc.
+     A imagem og-image.jpg (1200x630) é gerada por _og_build.py
+     a partir do par de demonstração foggy-morning, com o slider
+     real do app sobreposto.
+
+     Notas importantes:
+     - og:image PRECISA ser URL absoluta (https://...). Crawlers do
+       WhatsApp/Twitter recusam relativas. Apontamos pro GitHub Pages.
+     - og:image:width/height ajudam o crawler a alocar o layout
+       antes de baixar a imagem (evita "layout shift" no preview).
+     - twitter:card=summary_large_image força o preview grande
+       (vs. summary que mostra thumbnail pequeno).
+     - meta name=description é o fallback pra crawlers que ignoram OG.
+     =========================================================== -->
+<meta name="description" content="Compare before/after photos in the browser. Slider, side-by-side, solo. EXIF + GPS. 8 languages. Zero upload — everything runs locally.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="image-pair-viewer">
+<meta property="og:url" content="https://vinisouza128.github.io/image-pair-viewer/">
+<meta property="og:title" content="image-pair-viewer — Compare any before & after">
+<meta property="og:description" content="Slider, side-by-side & solo modes. EXIF, GPS, 8 languages. Zero upload — everything runs in your browser.">
+<meta property="og:image" content="https://vinisouza128.github.io/image-pair-viewer/og-image.jpg">
+<meta property="og:image:secure_url" content="https://vinisouza128.github.io/image-pair-viewer/og-image.jpg">
+<meta property="og:image:type" content="image/jpeg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="image-pair-viewer: real before/after photo split with orange slider; tagline 'Compare any before & after'.">
+<meta property="og:locale" content="pt_BR">
+<meta property="og:locale:alternate" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="image-pair-viewer — Compare any before & after">
+<meta name="twitter:description" content="Slider, side-by-side & solo modes. EXIF, GPS, 8 languages. Zero upload — everything runs in your browser.">
+<meta name="twitter:image" content="https://vinisouza128.github.io/image-pair-viewer/og-image.jpg">
+<meta name="twitter:image:alt" content="image-pair-viewer: real before/after photo split with orange slider; tagline 'Compare any before & after'.">
 <style>
 /* ==========================================================================
    DESIGN TOKENS  (CSS custom properties)

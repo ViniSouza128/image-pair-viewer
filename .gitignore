@@ -32,6 +32,11 @@ _*.py
 !_build.py
 !_samples_build.py
 !_icons_build.py
+!_og_build.py
 _*.html
 *.tmp.js
+
+# Open Graph share image (1200x630, gerada por _og_build.py).
+# Necessária pro preview no WhatsApp/Twitter/LinkedIn/Facebook funcionar.
+!og-image.jpg
 

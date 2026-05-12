@@ -20,6 +20,54 @@ URL pública (GitHub Pages): https://vinisouza128.github.io/image-pair-viewer/
 
 ---
 
+## Preview de link (Open Graph)
+
+Quando o link do GitHub Pages é colado no **WhatsApp / Twitter /
+LinkedIn / Facebook / Slack / Discord / Telegram / iMessage**, aparece
+um card de preview de 1200×630 com:
+
+- Card à esquerda: par antes/depois real (foggy-morning) com o slider
+  laranja do app sobreposto e badges `ANTES` / `DEPOIS` nos cantos
+- Lado direito: marca + título grande de 2 linhas (segunda em laranja)
+  + subtítulo + pill com a URL
+
+A imagem (`og-image.jpg`, ~98 KB) é gerada por [`_og_build.py`](_og_build.py)
+a partir dos próprios samples — então é sempre fiel ao que o usuário
+vê ao abrir o app.
+
+### Meta tags no `<head>`
+
+```html
+<meta property="og:title" content="image-pair-viewer — Compare any before & after">
+<meta property="og:description" content="...">
+<meta property="og:image" content="https://vinisouza128.github.io/image-pair-viewer/og-image.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+```
+
+Inclui também `og:url`, `og:type`, `og:locale`, alt text descritivo e
+fallback de `<meta name="description">` pra crawlers que ignoram Open Graph.
+
+### Regenerar a imagem OG
+
+```bash
+python _og_build.py
+```
+
+Renderiza um JPEG 1200×630 com qualidade 88 (~100 KB). Edite as
+constantes no topo do script pra trocar o sample usado, o copy ou
+as cores. Após qualquer mudança visual no app, vale regenerar pra
+manter o preview atualizado.
+
+### Validar o preview
+
+- [Facebook Sharing Debugger](https://developers.facebook.com/tools/debug/) — força a re-leitura das meta tags pelo crawler.
+- [Twitter/X Card Validator](https://cards-dev.twitter.com/validator).
+- [WhatsApp Link Preview Tester](https://www.opengraph.xyz/) — mais tolerante (WhatsApp não tem debugger oficial; o `og.xyz` simula).
+
+---
+
 ## PWA (Progressive Web App)
 
 O app é **instalável** como aplicativo nativo e funciona **offline**
