@@ -69,6 +69,34 @@
      inline como SVG. Cores idênticas às vars --before/--after do CSS.
      Funciona em Chrome 80+, Firefox 41+, Edge 80+, Safari 14+. -->
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='9' cy='16' r='8' fill='%236cc7ff'/><circle cx='23' cy='16' r='8' fill='%23ffae3c'/></svg>">
+
+<!-- ===========================================================
+     PWA (Progressive Web App)
+     -----------------------------------------------------------
+     Conjunto mínimo pra a app ser INSTALÁVEL (botão "Instalar"
+     no Chrome/Edge, "Add to Home Screen" no iOS/Android) e
+     funcionar OFFLINE depois da primeira visita.
+
+     - manifest.webmanifest: nome, ícones, cor, display standalone
+     - service-worker.js: cacheia a shell + samples
+     - apple-* tags: equivalentes iOS (Safari não lê o manifest
+       direito pra essas propriedades, então duplicamos via meta)
+     - theme-color: pinta a status bar do browser/OS no tom escuro
+
+     O app inteiro continua funcionando se o SW falhar ou for
+     desabilitado — PWA aqui é PROGRESSIVE enhancement.
+     =========================================================== -->
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#08090c">
+<meta name="color-scheme" content="dark">
+<meta name="application-name" content="image-pair-viewer">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Antes/Depois">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
 <style>
 /* ==========================================================================
    DESIGN TOKENS  (CSS custom properties)
@@ -5368,6 +5396,40 @@ if (window.EMBEDDED_DATA && Array.isArray(window.EMBEDDED_DATA) && window.EMBEDD
 } else {
   // Modo live: liga a UI de upload e espera o usuário escolher arquivos.
   bindUploadUI();
+  // Shortcut do manifest PWA: ?demo=1 dispara o botão "Experimentar com
+  // exemplos" automaticamente. Acionado pelo atalho no app installer
+  // (long-press no ícone no Android, jump list no Windows, etc.).
+  //
+  // setTimeout (não rAF) — rAF fica pausado em tabs invisíveis/em
+  // background, o que faria o atalho falhar quando o usuário abrisse o
+  // app via jump list e voltasse pra ele depois. setTimeout dispara
+  // independente de visibilidade.
+  try {
+    const qp = new URLSearchParams(location.search);
+    if (qp.get('demo') === '1'){
+      const btn = document.getElementById('samplesBtn');
+      if (btn) setTimeout(() => btn.click(), 0);
+    }
+  } catch(e) { /* URLSearchParams é universal — fallback silencioso. */ }
+}
+
+/* ============================================================================
+   SERVICE WORKER — registra em produção pra habilitar instalação + offline.
+
+   Por que assim:
+   - Só registra se `serviceWorker` existe no navigator (suportado em
+     todos os browsers modernos, mas zera silenciosamente em IE etc.).
+   - Pula em file:// (SW requer http(s)/localhost), evita warning no
+     DevTools quando o usuário abre o HTML pelo Explorer.
+   - .catch silencioso — falha não deve quebrar o app. PWA é progressive
+     enhancement, a app continua 100% funcional sem o SW.
+   ========================================================================== */
+if ('serviceWorker' in navigator && location.protocol !== 'file:'){
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js').catch(() => {
+      // Sem rede, sem permissão, conflito de scope, etc. — ignora.
+    });
+  });
 }
 
 })();

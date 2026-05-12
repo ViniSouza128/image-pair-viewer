@@ -20,6 +20,66 @@ URL pública (GitHub Pages): https://vinisouza128.github.io/image-pair-viewer/
 
 ---
 
+## PWA (Progressive Web App)
+
+O app é **instalável** como aplicativo nativo e funciona **offline**
+depois da primeira visita.
+
+### O que está embutido
+
+| Arquivo                     | Função                                       |
+|-----------------------------|----------------------------------------------|
+| `manifest.webmanifest`      | Nome, ícones, cor, modo standalone, shortcuts |
+| `service-worker.js`         | Cache da shell + estratégias network/cache-first |
+| `icons/icon-192.png`        | Ícone padrão Android (192 px)                |
+| `icons/icon-512.png`        | Ícone Android grande + splash screen         |
+| `icons/icon-180.png`        | `apple-touch-icon` (iOS Add to Home Screen)  |
+| `icons/icon-maskable-512.png` | Variante "maskable" pra Android adaptive icons |
+
+### Como instalar
+
+- **Chrome / Edge desktop**: ícone de instalar (⊕) aparece na omnibox.
+- **Android**: menu "Adicionar à tela inicial" / "Instalar app".
+- **iOS Safari**: botão Share → "Add to Home Screen".
+- **Windows**: instala como app standalone via Edge (entra no menu Iniciar).
+
+Depois de instalado, abre numa janela própria (sem chrome do browser),
+com ícone próprio, e aparece no app switcher do SO.
+
+### Modo offline
+
+Na primeira visita o Service Worker pré-cacheia a shell (~280 KB total):
+`index.html`, `manifest.webmanifest`, e os 4 ícones PNG. As visitas
+seguintes carregam instantâneo do cache.
+
+- HTML usa estratégia **network-first** com fallback no cache —
+  atualizações chegam rápido quando há rede, e o app abre offline se não há.
+- Estáticos (ícones, manifest, samples) usam **cache-first** — assets
+  versionados, não muda.
+- Sample images do botão "Experimentar" entram no cache na primeira
+  vez que são fetchadas, então funcionam offline depois.
+- Requests cross-origin (Nominatim pra reverse geocoding, downloads
+  do Wikimedia, etc.) passam direto sem cache.
+
+### Shortcut do manifest
+
+Ao fazer **long-press** no ícone instalado (Android), ou clicar com
+botão direito no app fixado no menu Iniciar (Windows), aparece um
+atalho **"Experimentar com exemplos"** que abre o app já com os 4 pares
+de demonstração carregados (URL `?demo=1`).
+
+### Regenerar ícones
+
+```bash
+python _icons_build.py
+```
+
+Renderiza as 5 PNGs (192/512/180/maskable/32) a partir do design das
+2 bolinhas inline-SVG. Edita as constantes no topo do script pra mudar
+cores ou proporção.
+
+---
+
 ## Experimentar com exemplos (sem subir fotos)
 
 A tela de upload tem um botão **"Experimentar com exemplos"** abaixo do

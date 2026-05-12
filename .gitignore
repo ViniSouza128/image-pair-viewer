@@ -14,6 +14,11 @@
 !samples/
 !samples/**
 
+# Exceção: pasta icons/ traz os ícones PWA (PNG gerados por
+# _icons_build.py). Necessários pra instalação e splash screen.
+!icons/
+!icons/**
+
 # Arquivos de sistema / editor
 .DS_Store
 Thumbs.db
@@ -26,6 +31,7 @@ desktop.ini
 _*.py
 !_build.py
 !_samples_build.py
+!_icons_build.py
 _*.html
 *.tmp.js
 

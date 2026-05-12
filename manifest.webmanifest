@@ -1,0 +1,49 @@
+{
+  "name": "image-pair-viewer",
+  "short_name": "Antes/Depois",
+  "description": "Visualizador interativo de pares de imagens (antes/depois) — comparador com slider, lado a lado, solo, zoom ancorado e EXIF. Tudo processado localmente no navegador.",
+  "lang": "pt-BR",
+  "dir": "ltr",
+  "id": "/image-pair-viewer/",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui", "browser"],
+  "orientation": "any",
+  "background_color": "#08090c",
+  "theme_color": "#08090c",
+  "categories": ["photo", "productivity", "utilities"],
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Experimentar com exemplos",
+      "short_name": "Exemplos",
+      "description": "Abre o app com 4 pares de demonstração",
+      "url": "./?demo=1",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ],
+  "prefer_related_applications": false,
+  "edge_side_panel": {
+    "preferred_width": 480
+  }
+}
