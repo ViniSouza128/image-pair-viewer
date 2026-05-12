@@ -1,4 +1,15 @@
-# Sample image credits
+# Credits
+
+## Project author
+
+**Vinícius Rodrigues de Souza** — [@vinisouza128](https://github.com/ViniSouza128)
+
+Conception, design, implementation, i18n (8 languages), documentation,
+and sample curation. See [LICENSE](LICENSE) for usage terms.
+
+---
+
+## Sample image credits
 
 The `samples/` folder contains 4 before/after pairs used by the **"Try with sample images"** button on the upload screen. They let visitors test the comparison tool without uploading their own photos.
 
@@ -50,5 +61,5 @@ Downloads originals, resizes to 2000 px, and writes both `before` and `after` JP
 
 ## Licensing summary
 
-- **Project code** (`index.html`, `_build.py`, `_samples_build.py`): see [LICENSE](LICENSE).
+- **Project code** (`index.html`, `_build.py`, `_samples_build.py`): © 2026 Vinícius Rodrigues de Souza ([@vinisouza128](https://github.com/ViniSouza128)). All rights reserved. See [LICENSE](LICENSE).
 - **Sample images** (`samples/*.jpg`): individually licensed as listed above (CC BY-SA 4.0 or Public Domain). Attribution requirements for CC BY-SA images are satisfied by this file.

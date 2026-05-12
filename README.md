@@ -872,10 +872,19 @@ Helper CLI em Python que:
 
 ---
 
+## Autor
+
+**Vinícius Rodrigues de Souza** — [@vinisouza128](https://github.com/ViniSouza128)
+
+Projeto pessoal de portfólio. Concepção, design, implementação,
+i18n, documentação e curadoria dos exemplos: tudo por mim.
+
+---
+
 ## Licença
 
-Copyright © 2026 Vinicius Souza. Todos os direitos reservados.
-Veja [LICENSE](LICENSE).
+Copyright © 2026 Vinícius Rodrigues de Souza ([@vinisouza128](https://github.com/ViniSouza128)).
+Todos os direitos reservados. Veja [LICENSE](LICENSE).
 
 ---
 
